@@ -1,0 +1,18 @@
+{
+  "name": "psnilesh-blog",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "npm run build:css && npx @11ty/eleventy",
+    "serve": "npm run build:css && npx @11ty/eleventy --serve",
+    "build:css": "sass assets/main.scss _site/assets/main.css"
+  },
+  "devDependencies": {
+    "@11ty/eleventy": "^2.0.1",
+    "sass": "^1.69.5"
+  },
+  "dependencies": {
+    "highlight.js": "^11.11.1",
+    "markdown-it-anchor": "^9.2.0",
+    "markdown-it-toc-done-right": "^4.2.0"
+  }
+}

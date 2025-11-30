@@ -1,0 +1,29 @@
+---
+layout: default.njk
+pagination:
+  data: collections.posts
+  size: 5
+  alias: posts
+---
+
+<div class="catalogue">
+  {% for post in collections.posts %}
+    {% if post.data.sticky %}
+      {% include "catalogue_item.njk" %}
+    {% endif %}
+  {% endfor %}
+
+  {% for post in posts %}
+    {% include "catalogue_item.njk" %}
+  {% endfor %}
+</div>
+
+<div class="pagination">
+  {% if pagination.href.previous %}
+    <a href="{{ pagination.href.previous }}" class="left arrow">&#8592;</a>
+  {% endif %}
+  {% if pagination.href.next %}
+    <a href="{{ pagination.href.next }}" class="right arrow">&#8594;</a>
+  {% endif %}
+  <span>{{ pagination.pageNumber + 1 }}</span>
+</div>

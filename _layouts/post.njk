@@ -1,0 +1,34 @@
+---
+layout: default.njk
+---
+
+<div class="post">
+  <div class="post-info">
+    {% if date %}
+      <br>
+      <time datetime="{{ date }}">{{ date | dateDisplay }}</time>
+    {% endif %}
+  </div>
+
+  <h1 class="post-title">{{ title }}</h1>
+  <div class="post-line"></div>
+  {{ content | safe }}
+</div>
+
+{% if comments %}
+  {% include "disqus_comments.njk" %}
+{% endif %}
+
+<div class="pagination">
+  {% set nextPost = collections.posts | getPreviousCollectionItem %}
+  {% set prevPost = collections.posts | getNextCollectionItem %}
+  
+  {% if nextPost %}
+    <a href="{{ nextPost.url }}" class="left arrow">&#8592;</a>
+  {% endif %}
+  {% if prevPost %}
+    <a href="{{ prevPost.url }}" class="right arrow">&#8594;</a>
+  {% endif %}
+
+  <a href="#" class="top">Top</a>
+</div>

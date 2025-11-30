@@ -9,13 +9,6 @@ excerpt_separator: "<!--more-->"
 
 This is a collection of best practices and idioms I keep close for writing clean, concise and readable programs in [Go programming language.](https://go.dev/) <!--more-->
 
-Jump to ...
-
-* TOC
-{:toc}
-
----
-
 ## 1. Initializing structures with optional parameters
 
 Golang does not support optional function arguments, nor constructors for initializing structures. This makes initializing large structures with lot of optional paramters difficult. Commander Rob Pike came up with a good solution to this problem that is demonstrated in the snippet next.

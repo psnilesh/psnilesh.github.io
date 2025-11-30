@@ -6,17 +6,21 @@
   &-error {
     font-size: 4rem;
     margin: 1rem 0;
+    color: $code-color;
+    text-shadow: 0 0 20px rgba(255, 0, 110, 0.5);
   }
 
   &-line {
-    border-top: 0.4rem solid $default-shade;
+    border-top: 0.4rem solid $blue;
     display: block;
     margin: 0 auto 3rem;
     width: 4rem;
+    box-shadow: 0 0 10px $shadow-color;
   }
 
   &-message {
     max-width: 25rem;
     margin: 0 auto;
+    color: $default-color;
   }
 }

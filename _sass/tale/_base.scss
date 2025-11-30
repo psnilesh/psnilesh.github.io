@@ -6,9 +6,9 @@
 html,
 body {
   color: $default-color;
+  background-color: $grey-1;
   margin: 0;
   padding: 0;
-  background-color: #fff;
 }
 
 html {
@@ -17,7 +17,7 @@ html {
   overflow-y: scroll;
 
   @media (min-width: 600px) {
-    font-size: 18px;
+    font-size: 16px;
   }
 }
 
@@ -31,7 +31,7 @@ h3,
 h4,
 h5,
 h6 {
-  color: $default-shade;
+  color: $default-tint;
   font-family: $sans-serif;
   line-height: normal;
 }
@@ -39,45 +39,48 @@ h6 {
 a {
   color: $blue;
   text-decoration: none;
+  transition: color 0.3s;
+  
+  &:hover {
+    color: $code-color;
+  }
 }
 
 blockquote {
-  border-left: .25rem solid $grey-2;
-  color: $grey-1;
+  border-left: .25rem solid $blue;
+  color: $default-shade;
   margin: .8rem 0;
   padding: .5rem 1rem;
+  background: $grey-2;
 
   p:last-child {
     margin-bottom: 0;
   }
+}
 
-  @media (min-width: 600px) {
-    padding: 0 5rem 0 1.25rem;
+code,
+pre {
+  font-family: $code-font;
+  background-color: $grey-2;
+  border: 1px solid $grey-3;
+}
+
+code {
+  color: $code-color;
+  font-size: 85%;
+  padding: .25em .5em;
+  border-radius: 3px;
+}
+
+pre {
+  padding: 1rem;
+  overflow-x: auto;
+  border-radius: 5px;
+  box-shadow: 0 0 10px $shadow-color;
+
+  > code {
+    border: 0;
+    padding-left: 0;
+    padding-right: 0;
   }
-}
-
-img {
-  display: block;
-  margin: 0 0 1rem;
-  max-width: 100%;
-}
-
-td {
-  vertical-align: top;
-}
-
-hr.fade {
-  border: 0;
-  height: 1px;
-  background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
-}
-
-.section-title {
-  text-align: center;
-}
-
-.section-title:hover {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-position: under;
 }

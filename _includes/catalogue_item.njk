@@ -1,0 +1,11 @@
+<a href="{{ post.url }}" class="catalogue-item">
+  <div>
+    {% if post.data.sticky %}
+    <span class="catalogue-pinned">Pinned &middot;</span>
+    {% endif %}
+    <time datetime="{{ post.date }}" class="catalogue-time">{{ post.date | dateDisplay }}</time>
+    <h1 class="catalogue-title">{{ post.data.title }}</h1>
+    <div class="catalogue-line"></div>
+    <p>{{ post.templateContent | excerpt }}</p>
+  </div>
+</a>

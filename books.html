@@ -1,14 +1,12 @@
 ---
-layout: default
-title: "Tags"
+layout: default.njk
+title: "Books"
 permalink: /books/
 ---
 
 <h3 class="section-title"> Currently reading </h3>
-<!-- Show static HTML/CSS as a placeholder in case js is not enabled - javascript include will override this if things work -->
 <style type="text/css" media="screen">
     .gr_custom_container_1662186174 {
-        /* customize your Goodreads widget container here*/
         border: 1px solid black;
         border-radius: 5px;
         padding: 10px 5px 10px 5px;
@@ -17,7 +15,6 @@ permalink: /books/
         width: 100%;
     }
     .gr_custom_header_1662186174 {
-        /* customize your Goodreads header here*/
         border-bottom: 1px solid gray;
         width: 100%;
         margin-bottom: 5px;
@@ -25,7 +22,6 @@ permalink: /books/
         font-size: 120%;
     }
     .gr_custom_each_container_1662186174 {
-        /* customize each individual book container here */
         width: 100%;
         clear: both;
         margin-bottom: 10px;
@@ -34,7 +30,6 @@ permalink: /books/
         border-bottom: 1px solid #aaa;
     }
     .gr_custom_book_container_1662186174 {
-        /* customize your book covers here */
         overflow: hidden;
         height: 160px;
         float: left;
@@ -42,16 +37,13 @@ permalink: /books/
         width: 98px;
     }
     .gr_custom_author_1662186174 {
-        /* customize your author names here */
         font-size: 10px;
     }
     .gr_custom_tags_1662186174 {
-        /* customize your tags here */
         font-size: 10px;
         color: gray;
     }
     .gr_custom_rating_1662186174 {
-        /* customize your rating stars here */
         float: right;
     }
 </style>
@@ -82,20 +74,14 @@ permalink: /books/
         <noscript> Share <a rel="nofollow" href="https://www.goodreads.com/">book reviews</a> and ratings with Nilesh, and even join a <a rel="nofollow" href="https://www.goodreads.com/group">book club</a> on Goodreads. </noscript>
     </div>
 </div>
-<script
-    src="https://www.goodreads.com/review/custom_widget/38991083.My%20bookshelf?cover_position=left&cover_size=medium&num_books=5&order=a&shelf=currently-reading&show_author=1&show_cover=1&show_rating=0&show_review=1&show_tags=1&show_title=1&sort=date_added&widget_bg_color=FFFFFF&widget_bg_transparent=&widget_border_width=3&widget_id=1662186174&widget_text_color=000000&widget_title_size=medium&widget_width=wide"
-    type="text/javascript"
-    charset="utf-8"
-></script>
+<script src="https://www.goodreads.com/review/custom_widget/38991083.My%20bookshelf?cover_position=left&cover_size=medium&num_books=5&order=a&shelf=currently-reading&show_author=1&show_cover=1&show_rating=0&show_review=1&show_tags=1&show_title=1&sort=date_added&widget_bg_color=FFFFFF&widget_bg_transparent=&widget_border_width=3&widget_id=1662186174&widget_text_color=000000&widget_title_size=medium&widget_width=wide" type="text/javascript" charset="utf-8"></script>
 
 <br /> <br />
 <h3 class="section-title"> My favourites </h3>
 <style type="text/css" media="screen">
     .gr_grid_container {
-    /* customize grid container div here. eg: width: 500px; */
     }
     .gr_grid_book_container {
-    /* customize book cover container div here */
     float: left;
     width: 98px;
     height: 160px;
@@ -104,7 +90,6 @@ permalink: /books/
     }
 </style>
 <div id="gr_grid_widget_1662185503">
-    <!-- Show static html as a placeholder in case js is not enabled - javascript include will override this if things work -->
     <div class="gr_grid_container">
         <div class="gr_grid_book_container"><a title="The Investment Checklist: The Art of In-Depth Research" rel="nofollow" href="https://www.goodreads.com/book/show/12887849-the-investment-checklist"><img alt="The Investment Checklist: The Art of In-Depth Research" border="0" src="https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1347629766l/12887849._SX98_.jpg" /></a></div>
         <div class="gr_grid_book_container"><a title="The Essays of Warren Buffett: Lessons for Corporate America" rel="nofollow" href="https://www.goodreads.com/book/show/49466745-the-essays-of-warren-buffett"><img alt="The Essays of Warren Buffett: Lessons for Corporate America" border="0" src="https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1576733023l/49466745._SX98_.jpg" /></a></div>
@@ -145,10 +130,6 @@ permalink: /books/
         float: left;
         border-radius: 5px;
         background-color: #fff;
-        /* border: solid #683205 10px;
-        -webkit-box-shadow: 0px 0px 4px 1px #595959, inset 0px 0px 0px 1px #7d730b;
-        -moz-box-shadow: 0px 0px 4px 1px #595959, inset 0px 0px 0px 1px #7d730b;
-        box-shadow: 0px 0px 4px 1px #595959, inset 0px 0px 0px 1px #7d730b; */
         padding: 15px 0 0px 15px;
         width: 100%;
         height: 400px;
@@ -171,13 +152,7 @@ permalink: /books/
     }
 </style>
 <div id="gr_updates_widget">
-    <iframe
-        sandbox
-        id="the_iframe"
-        src="https://goodreads.com/widgets/user_update_widget?height=400&num_updates=20&user=38991083&width=600"
-        width="700"
-        height="330"
-        frameborder="0"></iframe>
+    <iframe sandbox id="the_iframe" src="https://goodreads.com/widgets/user_update_widget?height=400&num_updates=20&user=38991083&width=600" width="700" height="330" frameborder="0"></iframe>
     <div id="gr_footer">
         <a href="https://www.goodreads.com/"><img alt="Goodreads: Book reviews, recommendations, and discussion" src="https://s.gr-assets.com/images/layout/goodreads_logo_140.png" /></a>
     </div>

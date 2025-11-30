@@ -1,46 +1,106 @@
 pre,
-code {
-  font-family: $monospaced;
-}
-
-code {
-  background-color: $grey-3;
-  border-radius: 3px;
-  color: $code-color;
-  font-size: 85%;
-  padding: .25em .5em;
-}
-
-pre {
+pre.highlight {
+  background: $grey-2;
+  border: 1px solid $grey-3;
+  border-radius: 5px;
+  box-shadow: 0 0 15px $shadow-color;
+  font-size: 1rem;
   margin: 0 0 1rem;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+code {
+  color: $code-color;
+  font-size: 0.95rem;
 }
 
 pre code {
-  background-color: transparent;
-  color: inherit;
-  font-size: 100%;
-  padding: 0;
+  color: $default-color;
+  font-size: 1rem;
 }
 
-.highlight {
-  background-color: $grey-3;
-  border-radius: 3px;
-  line-height: 1.4;
-  margin: 0 0 1rem;
-  padding: 1rem;
+// Highlight.js theme
+.hljs {
+  color: $default-color;
+  background: $grey-2;
+}
 
-  pre {
-    margin-bottom: 0;
-    overflow-x: auto;
-  }
+.hljs-comment,
+.hljs-quote {
+  color: #6c757d;
+  font-style: italic;
+}
 
-  .lineno {
-    color: $default-tint;
-    display: inline-block; // Ensures the null space also isn't selectable
-    padding: 0 .75rem 0 .25rem;
-    // Make sure numbers aren't selectable
-    -webkit-user-select: none;
-       -moz-user-select: none;
-            user-select: none;
-  }
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-subst {
+  color: #ff006e;
+  font-weight: bold;
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag .hljs-attr {
+  color: #ffd60a;
+}
+
+.hljs-string,
+.hljs-doctag {
+  color: #06ffa5;
+}
+
+.hljs-title,
+.hljs-section,
+.hljs-selector-id {
+  color: #00d9ff;
+  font-weight: bold;
+}
+
+.hljs-type,
+.hljs-class .hljs-title {
+  color: #ffd60a;
+}
+
+.hljs-tag,
+.hljs-name,
+.hljs-attribute {
+  color: #00d9ff;
+}
+
+.hljs-regexp,
+.hljs-link {
+  color: #06ffa5;
+}
+
+.hljs-symbol,
+.hljs-bullet {
+  color: #ff006e;
+}
+
+.hljs-built_in,
+.hljs-builtin-name {
+  color: #00d9ff;
+}
+
+.hljs-meta {
+  color: #a0a0a0;
+}
+
+.hljs-deletion {
+  background: #ff006e;
+}
+
+.hljs-addition {
+  background: #06ffa5;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: bold;
 }
