@@ -13,17 +13,18 @@ Return on Equity (ROE) measures the amount earned by the business, after servici
 
 Lets take a farming as an example. Suppose you had to take a loan (a liability) of $60M and invest your own $40M to purchase a $100M farm land. Your equity, as per standard accounting equation is, $40M.
 
-<br />
+
 ![Fig 1. Accounting equation]({{ "assets/images/investing/accounting_equation.png" | relative_url }})
+
 *Fig 1. Accounting equation*
-<br />
+
 
 At the end of every year, you are obliged to pay a predetermined interest on the $60M loan undertaken to start your business (and the principal when its due). Part of the profit from selling the produce of the year in the market will go towards servicing this debt. There will be other expenses (seeds, fertilizers, manual labor, taxes etc) which will further eat into your net income. Suppose you managed to squeeze out a net income of $3M at the end of year. Then your ROE would be 7.5% ($3M as a percentage of $40M investment).
 
-<br />
+
 ![Fig 2. Return on equity formula]({{ "assets/images/investing/return_on_equity.png" | relative_url }})
+
 *Fig 2. Return on equity formula*
-<br />
 
 <hr class="fade"/><br />
 Allow me a small detour to explain a fundamental rule you should follow while forming financial ratios. In the earlier example, we financed our farm through a loan and some of our own cash. Their net ($100M) is the total capital we put into the business. While estimating business performance / returns for the year, we have two choices. We can either calculate them in relation to total capital ($100M) or just owner's equity ($40M) as done above. **If we decide to use total capital, the numerator must reflect the income earned by the firm / business, not owners**. Operating income to firm is also called EBIT (Earnings before Interest and taxes). If we do not follow this rule, we risk overestimating equity return or underestimating return on total invested capital. It is only fair to compare apples to apples, *i.e income to firm vs total capital available to the firm - or - income to owners vs owners' investment*. Your creditors have interest in business too, and portion of income goes to buying it back little at a time (interest payments). Such costs reduce owners income. Keep this in mind while creating business specific performance metrics for new companies.
@@ -46,10 +47,11 @@ Consider another scenario where the company re-invested all of retained earnings
 
 Assuming the business is growing rapidly by re-investing all of its earnings year after year, what growth in earnings can the owners expect ? Time to break out some math.
 
-<br />
-![]({{ "assets/images/investing/roe_and_growth.png" | relative_url }})
+
+![Fig 3. Relation b/w ROE, earnings retained and expected growth]({{ "assets/images/investing/roe_and_growth.png" | relative_url }})
+
 *Fig 3. Relation b/w ROE, earnings retained and expected growth*
-<br />
+
 
 Retention ratio is the percentage of earnings company retained for re-investing. As the above derivation shows, if a company has predicable ROE, we can expect its earnings to grow proportional to earnings retained. For instance, if ROE is 20% and 90% of earnings were retained, earnings should grow by 18% to retain ROE for the next year. This rarely plays out year by year, so an evaluation period of 3 or 5 years might be necessary to glean the truth.
 

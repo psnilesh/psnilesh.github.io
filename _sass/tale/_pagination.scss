@@ -1,3 +1,5 @@
+@use 'variables' as *;
+
 .pagination {
   border-top: 2px solid $blue;
   font-family: $serif-secondary;

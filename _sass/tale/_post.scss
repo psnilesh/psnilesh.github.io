@@ -1,3 +1,5 @@
+@use 'variables' as *;
+
 .post {
   padding: 1rem 0 3rem 0;
 
@@ -44,7 +46,6 @@
     margin: 0 auto 0.5rem;
     display: block;
     max-width: 100%;
-    border: 1px solid $grey-3;
     border-radius: 5px;
   }
 

@@ -1,3 +1,6 @@
+@use 'sass:color';
+@use 'variables' as *;
+
 .catalogue {
   &-item {
     border-bottom: 1px solid $grey-3;
@@ -18,7 +21,7 @@
     }
 
     &:hover .catalogue-title {
-      color: darken($blue, 10%);
+      color: color.adjust($blue, $lightness: -10%);
       text-decoration: none;
     }
 
