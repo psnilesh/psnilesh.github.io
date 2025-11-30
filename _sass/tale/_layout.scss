@@ -20,9 +20,8 @@ main {
 
 .nav {
   overflow: auto;
-  background: transparent;
-  border-bottom: none;
-  box-shadow: none;
+  background: $grey-1;
+  border-bottom: 1px solid $grey-3;
 
   &-container {
     margin: 1rem auto;
@@ -55,9 +54,6 @@ main {
     color: $blue;
     display: inline-block;
     padding: 0 2rem 0 0;
-    font-size: 1.1rem;
-    font-weight: 600;
-    letter-spacing: 0.5px;
 
     &:last-child {
       padding-right: 0;
@@ -65,16 +61,13 @@ main {
 
     &:hover,
     &:focus {
-      text-shadow: 0 0 10px $shadow-color;
+      opacity: .7;
     }
   }
 
   a {
     color: $blue;
     font-family: $sans-serif;
-    text-transform: uppercase;
-    font-size: 0.9rem;
-    letter-spacing: 1px;
   }
 }
 

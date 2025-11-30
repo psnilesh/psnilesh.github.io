@@ -1,33 +1,9 @@
 .catalogue {
-  position: relative;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 600px;
-    height: 400px;
-    background: radial-gradient(ellipse at center, rgba(255, 255, 200, 0.02) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: 0;
-  }
-
   &-item {
     border-bottom: 1px solid $grey-3;
     color: $default-color;
     display: block;
     padding: 2rem 0;
-    transition: all 0.3s;
-    position: relative;
-    z-index: 1;
-
-    &:hover {
-      padding-left: 0.5rem;
-      border-left: 2px solid $blue;
-      background: radial-gradient(ellipse at left, rgba(0, 217, 255, 0.05) 0%, transparent 50%);
-    }
 
     &:hover .catalogue-line,
     &:focus .catalogue-line {
@@ -35,15 +11,14 @@
     }
 
     &:last-child {
-      border-bottom: 0;
+      border: 0;
     }
   }
 
   &-pinned {
-    color: $code-color;
+    color: $blue;
     font-family: $serif-secondary;
     letter-spacing: .5px;
-    font-weight: bold;
   }
 
   &-time {
@@ -66,6 +41,5 @@
     border-top: .2rem solid $blue;
     display: block;
     width: 2rem;
-    box-shadow: 0 0 5px $shadow-color;
   }
 }
