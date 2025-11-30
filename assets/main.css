@@ -5,8 +5,8 @@
 
 html,
 body {
-  color: #9a9a9a;
-  background-color: #0d0d0d;
+  color: #2d3748;
+  background-color: #ffffff;
   margin: 0;
   padding: 0;
 }
@@ -32,26 +32,25 @@ h3,
 h4,
 h5,
 h6 {
-  color: #b8b8b8;
+  color: #1a202c;
   font-family: "Helvetica Neue", "Segoe UI", Helvetica, Arial, sans-serif;
   line-height: normal;
 }
 
 a {
-  color: #00d9ff;
+  color: #3182ce;
   text-decoration: none;
-  transition: color 0.3s;
 }
 a:hover {
-  color: #ff006e;
+  text-decoration: underline;
 }
 
 blockquote {
-  border-left: 0.25rem solid #00d9ff;
-  color: #707070;
+  border-left: 0.25rem solid #e2e8f0;
+  color: #718096;
   margin: 0.8rem 0;
   padding: 0.5rem 1rem;
-  background: #1a1a1a;
+  background: #f7fafc;
 }
 blockquote p:last-child {
   margin-bottom: 0;
@@ -60,13 +59,13 @@ blockquote p:last-child {
 code,
 pre {
   font-family: Menlo, Monaco, monospace;
-  background-color: #1a1a1a;
-  border: 1px solid #252525;
+  background-color: #f7fafc;
+  border: 1px solid #e2e8f0;
 }
 
 code {
-  color: #ff006e;
-  font-size: 85%;
+  color: #e53e3e;
+  font-size: 0.95rem;
   padding: 0.25em 0.5em;
   border-radius: 3px;
 }
@@ -75,7 +74,6 @@ pre {
   padding: 1rem;
   overflow-x: auto;
   border-radius: 5px;
-  box-shadow: 0 0 10px rgba(0, 217, 255, 0.3);
 }
 pre > code {
   border: 0;
@@ -83,12 +81,17 @@ pre > code {
   padding-right: 0;
 }
 
+pre code {
+  color: #2d3748;
+  font-size: 1rem;
+}
+
 pre,
 pre.highlight {
-  background: #1a1a1a;
-  border: 1px solid #252525;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 5px;
-  box-shadow: 0 0 15px rgba(0, 217, 255, 0.3);
+  box-shadow: 0 0 15px rgba(49, 130, 206, 0.2);
   font-size: 1rem;
   margin: 0 0 1rem;
   padding: 1rem;
@@ -96,18 +99,18 @@ pre.highlight {
 }
 
 code {
-  color: #ff006e;
+  color: #e53e3e;
   font-size: 0.95rem;
 }
 
 pre code {
-  color: #9a9a9a;
+  color: #2d3748;
   font-size: 1rem;
 }
 
 .hljs {
-  color: #9a9a9a;
-  background: #1a1a1a;
+  color: #2d3748;
+  background: #f7fafc;
 }
 
 .hljs-comment,
@@ -193,7 +196,7 @@ pre code {
   padding: 3rem 0;
 }
 .post-info {
-  color: #707070;
+  color: #718096;
   font-family: Palatino, "Palatino LT STD", "Palatino Linotype", "Book Antiqua", "Georgia", serif;
   letter-spacing: 0.5px;
   text-align: center;
@@ -202,19 +205,17 @@ pre code {
   font-style: italic;
 }
 .post-title {
-  color: #00d9ff;
+  color: #3182ce;
   font-family: "Helvetica Neue", "Segoe UI", Helvetica, Arial, sans-serif;
   font-size: 4rem;
   margin: 1rem 0;
   text-align: center;
-  text-shadow: 0 0 20px rgba(0, 217, 255, 0.3);
 }
 .post-line {
-  border-top: 0.4rem solid #00d9ff;
+  border-top: 0.4rem solid #3182ce;
   display: block;
   margin: 0 auto 3rem;
   width: 4rem;
-  box-shadow: 0 0 10px rgba(0, 217, 255, 0.3);
 }
 .post p {
   margin: 0 0 1rem;
@@ -227,12 +228,11 @@ pre code {
   margin: 0 auto 0.5rem;
   display: block;
   max-width: 100%;
-  border: 2px solid #252525;
+  border: 1px solid #e2e8f0;
   border-radius: 5px;
-  box-shadow: 0 0 15px rgba(0, 217, 255, 0.3);
 }
 .post img + em {
-  color: #707070;
+  color: #718096;
   display: block;
   font-family: "Helvetica Neue", "Segoe UI", Helvetica, Arial, sans-serif;
   font-size: 0.9rem;
@@ -455,9 +455,8 @@ main {
 
 .nav {
   overflow: auto;
-  background: transparent;
-  border-bottom: none;
-  box-shadow: none;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
 }
 .nav-container {
   margin: 1rem auto;
@@ -466,7 +465,7 @@ main {
 }
 .nav-title {
   transition: all 0.2s ease-out;
-  color: #9a9a9a;
+  color: #2d3748;
   display: inline-block;
   margin: 0;
   padding-right: 0.2rem;
@@ -482,68 +481,62 @@ main {
 }
 .nav li {
   transition: all 0.2s ease-out;
-  color: #00d9ff;
+  color: #3182ce;
   display: inline-block;
   padding: 0 2rem 0 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  letter-spacing: 0.5px;
 }
 .nav li:last-child {
   padding-right: 0;
 }
 .nav li:hover, .nav li:focus {
-  text-shadow: 0 0 10px rgba(0, 217, 255, 0.3);
+  opacity: 0.7;
 }
 .nav a {
-  color: #00d9ff;
+  color: #3182ce;
   font-family: "Helvetica Neue", "Segoe UI", Helvetica, Arial, sans-serif;
-  text-transform: uppercase;
-  font-size: 0.9rem;
-  letter-spacing: 1px;
 }
 
 footer {
   font-family: Palatino, "Palatino LT STD", "Palatino Linotype", "Book Antiqua", "Georgia", serif;
   padding: 2rem 0;
   text-align: center;
-  color: #707070;
+  color: #718096;
 }
 footer span {
-  color: #9a9a9a;
+  color: #2d3748;
   font-size: 0.8rem;
 }
 
 .pagination {
-  border-top: 2px solid #00d9ff;
+  border-top: 2px solid #3182ce;
   font-family: Palatino, "Palatino LT STD", "Palatino Linotype", "Book Antiqua", "Georgia", serif;
   padding-top: 2rem;
   position: relative;
   text-align: center;
-  box-shadow: 0 -2px 10px rgba(0, 217, 255, 0.3);
+  box-shadow: 0 -2px 10px rgba(49, 130, 206, 0.2);
 }
 .pagination span {
-  color: #00d9ff;
+  color: #3182ce;
   font-size: 1.1rem;
   font-weight: bold;
 }
 .pagination .top {
   transition: all 0.3s ease-out;
-  color: #00d9ff;
+  color: #3182ce;
   font-family: "Helvetica Neue", "Segoe UI", Helvetica, Arial, sans-serif;
   font-size: 1.1rem;
 }
 .pagination .top:hover {
-  color: #ff006e;
+  color: #e53e3e;
 }
 .pagination .arrow {
   transition: all 0.3s ease-out;
-  color: #00d9ff;
+  color: #3182ce;
   position: absolute;
   font-size: 1.5rem;
 }
 .pagination .arrow:hover, .pagination .arrow:focus {
-  color: #ff006e;
+  color: #e53e3e;
   text-decoration: none;
 }
 .pagination .left {
@@ -553,54 +546,30 @@ footer span {
   right: 0;
 }
 
-.catalogue {
-  position: relative;
-}
-.catalogue::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 600px;
-  height: 400px;
-  background: radial-gradient(ellipse at center, rgba(255, 255, 200, 0.02) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-}
 .catalogue-item {
-  border-bottom: 1px solid #252525;
-  color: #9a9a9a;
+  border-bottom: 1px solid #e2e8f0;
+  color: #2d3748;
   display: block;
   padding: 2rem 0;
-  transition: all 0.3s;
-  position: relative;
-  z-index: 1;
-}
-.catalogue-item:hover {
-  padding-left: 0.5rem;
-  border-left: 2px solid #00d9ff;
-  background: radial-gradient(ellipse at left, rgba(0, 217, 255, 0.05) 0%, transparent 50%);
 }
 .catalogue-item:hover .catalogue-line, .catalogue-item:focus .catalogue-line {
   width: 5rem;
 }
 .catalogue-item:last-child {
-  border-bottom: 0;
+  border: 0;
 }
 .catalogue-pinned {
-  color: #ff006e;
+  color: #3182ce;
   font-family: Palatino, "Palatino LT STD", "Palatino Linotype", "Book Antiqua", "Georgia", serif;
   letter-spacing: 0.5px;
-  font-weight: bold;
 }
 .catalogue-time {
-  color: #707070;
+  color: #718096;
   font-family: Palatino, "Palatino LT STD", "Palatino Linotype", "Book Antiqua", "Georgia", serif;
   letter-spacing: 0.5px;
 }
 .catalogue-title {
-  color: #00d9ff;
+  color: #3182ce;
   display: block;
   font-family: "Helvetica Neue", "Segoe UI", Helvetica, Arial, sans-serif;
   font-size: 2rem;
@@ -609,10 +578,9 @@ footer span {
 }
 .catalogue-line {
   transition: all 0.3s ease-out;
-  border-top: 0.2rem solid #00d9ff;
+  border-top: 0.2rem solid #3182ce;
   display: block;
   width: 2rem;
-  box-shadow: 0 0 5px rgba(0, 217, 255, 0.3);
 }
 
 .notfound {
@@ -623,36 +591,36 @@ footer span {
 .notfound-error {
   font-size: 4rem;
   margin: 1rem 0;
-  color: #ff006e;
+  color: #e53e3e;
   text-shadow: 0 0 20px rgba(255, 0, 110, 0.5);
 }
 .notfound-line {
-  border-top: 0.4rem solid #00d9ff;
+  border-top: 0.4rem solid #3182ce;
   display: block;
   margin: 0 auto 3rem;
   width: 4rem;
-  box-shadow: 0 0 10px rgba(0, 217, 255, 0.3);
+  box-shadow: 0 0 10px rgba(49, 130, 206, 0.2);
 }
 .notfound-message {
   max-width: 25rem;
   margin: 0 auto;
-  color: #9a9a9a;
+  color: #2d3748;
 }
 
 .tags-header-title {
-  color: #00d9ff;
+  color: #3182ce;
   font-family: "Helvetica Neue", "Segoe UI", Helvetica, Arial, sans-serif;
   font-size: 4rem;
   margin: 1rem 0;
   text-align: center;
-  text-shadow: 0 0 20px rgba(0, 217, 255, 0.3);
+  text-shadow: 0 0 20px rgba(49, 130, 206, 0.2);
 }
 .tags-header-line {
-  border-top: 0.4rem solid #00d9ff;
+  border-top: 0.4rem solid #3182ce;
   display: block;
   margin: 0 auto 3rem;
   width: 4rem;
-  box-shadow: 0 0 10px rgba(0, 217, 255, 0.3);
+  box-shadow: 0 0 10px rgba(49, 130, 206, 0.2);
 }
 .tags-clouds {
   text-align: center;
@@ -663,41 +631,41 @@ footer span {
   display: inline-block;
   margin: 0 0.3rem 0.5rem;
   padding: 0.4rem 0.8rem;
-  background: #1a1a1a;
-  border: 1px solid #00d9ff;
+  background: #f7fafc;
+  border: 1px solid #3182ce;
   border-radius: 5px;
-  color: #00d9ff;
+  color: #3182ce;
   text-decoration: none;
   transition: all 0.3s;
 }
 .tags-clouds a:hover, .tags-clouds a:active {
-  background: #00d9ff;
-  color: #0d0d0d;
-  box-shadow: 0 0 15px rgba(0, 217, 255, 0.3);
+  background: #3182ce;
+  color: #ffffff;
+  box-shadow: 0 0 15px rgba(49, 130, 206, 0.2);
 }
 .tags-item {
   margin-bottom: 2rem;
 }
 .tags-item-icon {
   height: 1rem;
-  stroke: #00d9ff;
+  stroke: #3182ce;
 }
 .tags-item-label {
   display: inline-block;
   margin: 2rem 0 0.5rem;
   font-family: "Helvetica Neue", "Segoe UI", Helvetica, Arial, sans-serif;
-  color: #00d9ff;
+  color: #3182ce;
   font-size: 1.5rem;
 }
 .tags-post {
   display: flex;
   justify-content: space-between;
   padding: 8px 0;
-  border-bottom: 1px solid #252525;
+  border-bottom: 1px solid #e2e8f0;
   transition: all 0.3s;
 }
 .tags-post-title {
-  color: #9a9a9a;
+  color: #2d3748;
   text-decoration: none;
   white-space: nowrap;
   overflow: hidden;
@@ -705,25 +673,25 @@ footer span {
 }
 .tags-post-line {
   transition: all 0.3s ease-out;
-  border-top: 0.1rem solid #00d9ff;
+  border-top: 0.1rem solid #3182ce;
   display: block;
   width: 0;
 }
 .tags-post-meta {
-  color: #707070;
+  color: #718096;
   text-align: right;
   white-space: nowrap;
   margin-left: 1rem;
 }
 .tags-post:hover, .tags-post:active {
-  background: #1a1a1a;
+  background: #f7fafc;
   padding-left: 0.5rem;
 }
 .tags-post:hover .tags-post-line, .tags-post:active .tags-post-line {
   width: 3rem;
 }
 .tags-post:hover .tags-post-title, .tags-post:active .tags-post-title {
-  color: #00d9ff;
+  color: #3182ce;
 }
 
 /*# sourceMappingURL=main.css.map */
