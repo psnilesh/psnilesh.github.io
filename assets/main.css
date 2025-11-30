@@ -75,6 +75,12 @@ pre {
   overflow-x: auto;
   border-radius: 5px;
 }
+@media screen and (max-width: 600px) {
+  pre {
+    padding: 0.5rem;
+    font-size: 0.85rem;
+  }
+}
 pre > code {
   border: 0;
   padding-left: 0;
@@ -91,7 +97,6 @@ pre.highlight {
   background: #f7fafc;
   border: 1px solid #e2e8f0;
   border-radius: 5px;
-  box-shadow: 0 0 15px rgba(49, 130, 206, 0.2);
   font-size: 1rem;
   margin: 0 0 1rem;
   padding: 1rem;
@@ -115,14 +120,14 @@ pre code {
 
 .hljs-comment,
 .hljs-quote {
-  color: #6c757d;
+  color: #718096;
   font-style: italic;
 }
 
 .hljs-keyword,
 .hljs-selector-tag,
 .hljs-subst {
-  color: #ff006e;
+  color: #3182ce;
   font-weight: bold;
 }
 
@@ -131,57 +136,48 @@ pre code {
 .hljs-variable,
 .hljs-template-variable,
 .hljs-tag .hljs-attr {
-  color: #ffd60a;
+  color: #2d3748;
 }
 
 .hljs-string,
 .hljs-doctag {
-  color: #06ffa5;
+  color: #38a169;
 }
 
 .hljs-title,
 .hljs-section,
 .hljs-selector-id {
-  color: #00d9ff;
-  font-weight: bold;
+  color: #3182ce;
 }
 
 .hljs-type,
 .hljs-class .hljs-title {
-  color: #ffd60a;
+  color: #2d3748;
 }
 
 .hljs-tag,
 .hljs-name,
 .hljs-attribute {
-  color: #00d9ff;
+  color: #3182ce;
 }
 
 .hljs-regexp,
 .hljs-link {
-  color: #06ffa5;
+  color: #38a169;
 }
 
 .hljs-symbol,
 .hljs-bullet {
-  color: #ff006e;
+  color: #3182ce;
 }
 
 .hljs-built_in,
 .hljs-builtin-name {
-  color: #00d9ff;
+  color: #3182ce;
 }
 
 .hljs-meta {
-  color: #a0a0a0;
-}
-
-.hljs-deletion {
-  background: #ff006e;
-}
-
-.hljs-addition {
-  background: #06ffa5;
+  color: #718096;
 }
 
 .hljs-emphasis {
@@ -193,7 +189,7 @@ pre code {
 }
 
 .post {
-  padding: 3rem 0;
+  padding: 1rem 0 3rem 0;
 }
 .post-info {
   color: #718096;
@@ -207,9 +203,14 @@ pre code {
 .post-title {
   color: #3182ce;
   font-family: "Helvetica Neue", "Segoe UI", Helvetica, Arial, sans-serif;
-  font-size: 4rem;
+  font-size: 3rem;
   margin: 1rem 0;
   text-align: center;
+}
+@media screen and (max-width: 600px) {
+  .post-title {
+    font-size: 2rem;
+  }
 }
 .post-line {
   border-top: 0.4rem solid #3182ce;
@@ -457,6 +458,9 @@ main {
   overflow: auto;
   background: #ffffff;
   border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 .nav-container {
   margin: 1rem auto;
@@ -485,6 +489,12 @@ main {
   display: inline-block;
   padding: 0 2rem 0 0;
 }
+@media screen and (max-width: 600px) {
+  .nav li {
+    padding: 0 1rem 0 0;
+    font-size: 0.9rem;
+  }
+}
 .nav li:last-child {
   padding-right: 0;
 }
@@ -494,6 +504,11 @@ main {
 .nav a {
   color: #3182ce;
   font-family: "Helvetica Neue", "Segoe UI", Helvetica, Arial, sans-serif;
+}
+@media screen and (max-width: 600px) {
+  .nav a {
+    font-size: 0.85rem;
+  }
 }
 
 footer {
@@ -551,6 +566,21 @@ footer span {
   color: #2d3748;
   display: block;
   padding: 2rem 0;
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  margin: 0 -1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+.catalogue-item:hover {
+  background: #f7fafc;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+  text-decoration: none;
+}
+.catalogue-item:hover .catalogue-title {
+  color: rgb(39.2, 104, 164.8);
+  text-decoration: none;
 }
 .catalogue-item:hover .catalogue-line, .catalogue-item:focus .catalogue-line {
   width: 5rem;
@@ -575,6 +605,12 @@ footer span {
   font-size: 2rem;
   font-weight: 700;
   margin: 0.5rem 0;
+  transition: color 0.3s ease;
+}
+@media screen and (max-width: 600px) {
+  .catalogue-title {
+    font-size: 1.5rem;
+  }
 }
 .catalogue-line {
   transition: all 0.3s ease-out;

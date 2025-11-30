@@ -43,7 +43,15 @@
   <h1 class="post-title">Effective Go programming</h1>
   <div class="post-line"></div>
   <p>This is a collection of best practices and idioms I keep close for writing clean, concise and readable programs in <a href="https://go.dev/">Go programming language.</a> <!--more--></p>
-<h2 id="1.-initializing-structures-with-optional-parameters" tabindex="-1">1. Initializing structures with optional parameters</h2>
+<h2 id="table-of-contents" tabindex="-1">Table of Contents</h2>
+<ol>
+<li><a href="#1-initializing-structures-with-optional-parameters">Initializing structures with optional parameters</a></li>
+<li><a href="#2-struct-field-ordering-and-memory-usage">Struct field ordering and memory usage</a></li>
+<li><a href="#3-when-are-golang-interfaces-nil-">When are golang interfaces nil?</a></li>
+<li><a href="#4-adding-request-ids-to-slog-logs">Adding request IDs to slog logs</a></li>
+</ol>
+<hr>
+<h2 id="1-initializing-structures-with-optional-parameters" tabindex="-1">1. Initializing structures with optional parameters</h2>
 <p>Golang does not support optional function arguments, nor constructors for initializing structures. This makes initializing large structures with lot of optional paramters difficult. Commander Rob Pike came up with a good solution to this problem that is demonstrated in the snippet next.</p>
 <pre class="highlight"><code class="hljs"><span class="hljs-keyword">package</span> main
 
@@ -104,7 +112,7 @@
 able to override specific fields of the public structure while also maintaining the ability to initialize them to a sane default (if zero values don't suffice).  Note that this doesn't prevent your consumers from initializing the struct directly using <code>MyConfig{}</code>, so the recommended initialization method must be documented clearly.</p>
 <p>Sometimes structs will have to be modified to add new fields, in which case, constructor function can be modified to initialize those
 fields to non-zero default values.</p>
-<h2 id="2.-struct-field-ordering-and-memory-usage" tabindex="-1">2. Struct field ordering and memory usage</h2>
+<h2 id="2-struct-field-ordering-and-memory-usage" tabindex="-1">2. Struct field ordering and memory usage</h2>
 <p>Struct packing concept may not be entirely alien to those coming from C programming language. In summary, the order in which struct fields are defined can
 have a huge impact on memory, especially while processing large amounts of data modelled as structs.</p>
 <p>Consider the below program where we have defined two structs, <code>MyStruct1</code> and <code>MyStruct2</code>, both with same fields but in different order. As long as the struct
@@ -147,7 +155,7 @@ as the output of the program shows, <code>MyStruct2</code> take <code>25%</code>
 <p>So what brings about this difference ? Fields are stored at <a href="https://en.wikipedia.org/wiki/Word_(computer_architecture)">CPU word</a> boundaries in memory, which is usually 64 bits (8 bytes) these days. In our first struct, <code>x</code> takes only one byte, but <code>y</code> needs 16, so the compiler is forced to keep the remaining 7 bytes empty and start the string at next word boundary. Fields must align with word beginnings especially if they span across multiple words. However, when <code>x</code> and <code>z</code> are declared back to back in the second struct, compiler can pack them into a single word of 8 bytes, because they fit.</p>
 <p>So what used to be 8 bytes for <code>x</code>, 16 for <code>y</code> and another 8 for <code>z</code> in <code>MyStruct1</code>, effectively became 8 for <code>x</code> and <code>z</code>, and 16 for <code>z</code> in <code>MyStruct2</code>, reducing the total size of the struct by 1 word or 8 bytes. Though this does reduce memory, it adds a small runtime overhead. Since two fields are packed into a single word, compiler must include instructions to &quot;unpack&quot; them before operating on those fields (addition, subtraction etc.), because CPU assembly instructions assume data to begin at word boundaries.</p>
 <p>In the end, struct packing is an effective technique to reduce your program's memory consumption, though it may add a small runtime overhead. Like when doing any other performance improvements, use the data from profiling your program before and after the change to make a decision.</p>
-<h2 id="3.-when-are-golang-interfaces-nil-%3F" tabindex="-1">3. When are golang interfaces nil ?</h2>
+<h2 id="3-when-are-golang-interfaces-nil-" tabindex="-1">3. When are golang interfaces nil ?</h2>
 <p>Interfaces in golang have two fields, data type and value (pointer to an instance of data type). An interface is nil only when <strong>both</strong> these values are nil. This can be surprising to new
 go devs.</p>
 <pre class="highlight"><code class="hljs"><span class="hljs-keyword">package</span> main
@@ -195,7 +203,7 @@ go devs.</p>
 </code></pre>
 <p><a href="https://goplay.tools/snippet/p54yxPbfYhA">Try on playground</a></p>
 <p><code>Error</code> is by far the most used interface, and so it is considered a good practice to always return <code>nil</code> explicitly on success instead of using local variables to avoid overlooking this minor detail. It also helps to unit test both success and failure code paths, with assertions on the nil-ness of the error value returned.</p>
-<h2 id="4.-adding-request-ids-to-slog-logs" tabindex="-1">4. Adding request IDs to slog logs</h2>
+<h2 id="4-adding-request-ids-to-slog-logs" tabindex="-1">4. Adding request IDs to slog logs</h2>
 <p><a href="https://go.dev/doc/go1.21">Golang 1.21 introduced slog</a> package into stdlib. It provided much needed improvements over <code>log</code> package that exists in golang today. As usual, the package from official go team comes with excellent documentation on how to use it. If you're using slog in microservices, one common use-case would be to tag logs with a unique request ID so all log events corresponding to a request can be quickly collected for debugging. We could do just append request ID to every log, but is repetitive and cluttering. Instead, below snippet shows how a custom log handler can help to avoid this repetition.</p>
 <pre class="highlight"><code class="hljs"><span class="hljs-keyword">package</span> main
 

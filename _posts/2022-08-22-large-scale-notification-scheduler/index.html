@@ -60,7 +60,7 @@
 <li>We'll adhere to at-least once delivery mechanism, ensuring every callback is invoked one or more times.</li>
 <li>To have a sense of the scale of solution we need to build, lets assume this service will cater to <strong>hundreds of clients scheduling thousands of callbacks per second</strong>.</li>
 </ul>
-<h2 id="approach-1%3A-a-potato-solution-using-coroutines" tabindex="-1">Approach 1: A potato solution using coroutines</h2>
+<h2 id="approach-1-a-potato-solution-using-coroutines" tabindex="-1">Approach 1: A potato solution using coroutines</h2>
 <p>The first solution that ocurred to me was naive, incomplete and had a severe flaw. Nevertheless, I'll still explain it quickly here.
 <img src="https://miro.medium.com/max/570/1*DFxGm7k7q3PvecP15nn1Fw.jpeg" alt="">
 <em>Fig 1. Fleet of EC2 instances fronted by Elastic Load balancer</em></p>
@@ -86,7 +86,7 @@
 <p>As mentioned earlier, this solution suffered from a fatal flaw. Application state, i.e callbacks pending, was tied to particular instances and would be lost
 when they were taken down. Since coroutines are ephermal, even something as trivial as a new deployment would result in losing all scheduled callbacks
 from that instance when the JVM process was restarted. This was simply not acceptable. My eagerness to use the latest weapon from my arsenal was replaced by lingering anguish. Though I thought of separating state into an external store, I couldn't help but feel I was hacking around something severe I overlooked. So I started over.</p>
-<h2 id="approach-2%3A-sqs-and-message-visibility" tabindex="-1">Approach 2: SQS and message visibility</h2>
+<h2 id="approach-2-sqs-and-message-visibility" tabindex="-1">Approach 2: SQS and message visibility</h2>
 <p>The previous approach wasn't a complete waste of time, since it made me realize the state of program had to be maintained elsewhere. The requirement however didn't explicitly call for a persistent store, since the requests are technically kept around only until they expire. A queueing model felt more appropriate. AWS SQS is a fully managed queueing service that can send, store (14 days), and receive messages at any volume, without losing messages or requiring other services to be available. Between Standard and FIFO SQS queues, former seemed more appropriate for the problem's functional and scale requirements.</p>
 <p>Now the callback requests are qeueud, they had to be retrieved and processed around the time they expire. <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html">SQS SendMessage API</a> takes in a parameter <strong>DelaySeconds</strong> that's defined as</p>
 <blockquote>

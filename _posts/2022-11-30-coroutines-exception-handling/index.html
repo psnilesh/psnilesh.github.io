@@ -44,7 +44,7 @@
   <div class="post-line"></div>
   <p>Coroutines are, conceptually, light weight threads that has changed how developers write concurrent programs in Kotlin. They are built using suspendable computations, functions that can <em>suspend</em> its execution in one thread, and resume later from where it left off potentially in a  different thread. <code>suspend</code> functions are also <a href="https://www.youtube.com/watch?v=_hfBv0a09Jc">syntatic sugar over callbacks, as explained by Roman Elizarov</a>. It enabled developers to write concurrent programs in an imperative / procedural style. Moroever, co-operative coroutine scheduler ensures efficient use of native threads by scheduling multiple coroutines on a single thread so when one coroutine is blocked on, say a network request, the other coroutine can get some work done instead of simply blocking or keeping the thread idle. When properly applied, this can significally increase the throughput of web services for certain kind of workloads.</p>
 <p>While coroutines are easy use, handling exceptional cases get tricky real quick. Instead of explaining a boat load of theory about how exceptions are handled, I'm going to provide here few examples that has helped me model how coroutines behave when exceptions are left unhandled.</p>
-<h3 id="point-1)-suspend-functions-can-throw-and-handle-exceptions-like-regular-functions" tabindex="-1">Point 1) Suspend functions can throw and handle exceptions like regular functions</h3>
+<h3 id="point-1-suspend-functions-can-throw-and-handle-exceptions-like-regular-functions" tabindex="-1">Point 1) Suspend functions can throw and handle exceptions like regular functions</h3>
 <p>Suspend functions running in same coroutine behave just like regular functions when it comes to propagating exceptions. Exceptions can be thrown, caught and re-thrown as you would in a coroutine-less program.</p>
 <pre>
 <code class='kotlin-playground'>
@@ -68,7 +68,7 @@ suspend fun taskTwo() = println("Never called.")
 </code>
 </pre>
 <p>Even when functions suspend in one thread and resume in another, coroutines will take care of carrying over exceptions so we can write traditional looking procedural programs with conventional exception handling.</p>
-<h3 id="point-2)-top-level-launch-and-async-coroutines-handle-exceptions-differently" tabindex="-1">Point 2) Top level <em>launch</em> and <em>async</em> coroutines handle exceptions differently</h3>
+<h3 id="point-2-top-level-launch-and-async-coroutines-handle-exceptions-differently" tabindex="-1">Point 2) Top level <em>launch</em> and <em>async</em> coroutines handle exceptions differently</h3>
 <p><code>launch</code> and <code>async</code> are builders used for creating new coroutines. The former is used for fire and forget blocks and latter
 when the coroutine has something to return.  When exceptions are thrown from <code>launch</code> coroutines, its execution is cancelled and error is propagated to the parent, who in turn will cancel all its children and propagate the error to its parent and so on until the control reaches root coroutine. We can usually set up an <code>UncaughtExceptionHandler</code> to catch such exceptions. Async however, will hold on exceptions until we call <code>await()</code> on <code>Deferred</code> instance if it is a top level coroutine. Otherwise, it propagates up the error just like <code>launch</code>.</p>
 <pre>
@@ -113,7 +113,7 @@ fun main() = runBlocking {
 }
 </code>
 </pre>
-<h3 id="point-3)-non-root-async-coroutines-propagate-exceptions-immediately" tabindex="-1">Point 3) Non-root <em>async</em> coroutines propagate exceptions immediately</h3>
+<h3 id="point-3-non-root-async-coroutines-propagate-exceptions-immediately" tabindex="-1">Point 3) Non-root <em>async</em> coroutines propagate exceptions immediately</h3>
 <p><code>Async</code> coroutines will hold exceptions inside <code>Deferred</code> objects only if they are top level coroutines, i.e coroutines
 started directly from the scope. Nested coroutines will propagate exceptions to parent without
 waiting for the user to invoke <code>await()</code> method on its deferred object. This is necessary to guarantee consistent stuctured concurrency behavior.</p>
@@ -180,7 +180,7 @@ fun main(): Unit = runBlocking {
 }
 </code>
 </pre>
-<h3 id="point-4)-an-unhandled-exception-thrown-from-a-coroutine-will-cancel-its-parent-and-all-siblings" tabindex="-1">Point 4) An unhandled exception thrown from a coroutine will cancel its parent and all siblings</h3>
+<h3 id="point-4-an-unhandled-exception-thrown-from-a-coroutine-will-cancel-its-parent-and-all-siblings" tabindex="-1">Point 4) An unhandled exception thrown from a coroutine will cancel its parent and all siblings</h3>
 <p>This forms the basic premise of strucutured concurrency. The concept is not unlike a local variable falling out of scope (or destroyed) when the control exits the scope it was declared in.  Consider the below program where we start three coroutines, deliberately fail one, and observe as its sibling and parents are automatically cancelled.</p>
 <pre>
 <code class='kotlin-playground'>
@@ -224,7 +224,7 @@ fun main(): Unit = runBlocking {
 </code>
 </pre>
 <p>Above program will show that siblings job1 and job2 was cancelled when a child coroutine failed to handle an exception (or in this case, deliberately threw one).</p>
-<h3 id="point-5)-use-a-supervisor-job-to-prevent-auto-cacellation-of-coroutine-parent-and-siblings" tabindex="-1">Point 5) Use a Supervisor job to prevent auto cacellation of coroutine parent and siblings</h3>
+<h3 id="point-5-use-a-supervisor-job-to-prevent-auto-cacellation-of-coroutine-parent-and-siblings" tabindex="-1">Point 5) Use a Supervisor job to prevent auto cacellation of coroutine parent and siblings</h3>
 <p>So far we've seen coroutines cancelling everything when an Exception is left unhandled. There are use-cases where this isn't acceptable. To prevent a coroutine from propagating its error to parent and thus triggering a chain cancellation, create coroutine scopes with <code>SupervisorJob</code>. Coroutines launched as the <strong>immediate</strong> child of <code>SupervisorJob</code> do not propagate exceptions to their parents. In fact, none of their ancestors or siblings are even aware that they have failed. This is demonstrated by the program below.</p>
 <pre>
 <code class='kotlin-playground'>
