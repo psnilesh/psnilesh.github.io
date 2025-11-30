@@ -229,7 +229,6 @@ pre code {
   margin: 0 auto 0.5rem;
   display: block;
   max-width: 100%;
-  border: 1px solid #e2e8f0;
   border-radius: 5px;
 }
 .post img + em {
