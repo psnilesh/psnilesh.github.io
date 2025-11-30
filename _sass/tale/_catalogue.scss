@@ -4,6 +4,23 @@
     color: $default-color;
     display: block;
     padding: 2rem 0;
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    margin: 0 -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+
+    &:hover {
+      background: $grey-2;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      transform: translateY(-2px);
+      text-decoration: none;
+    }
+
+    &:hover .catalogue-title {
+      color: darken($blue, 10%);
+      text-decoration: none;
+    }
 
     &:hover .catalogue-line,
     &:focus .catalogue-line {
@@ -34,6 +51,11 @@
     font-size: 2rem;
     font-weight: 700;
     margin: .5rem 0;
+    transition: color 0.3s ease;
+
+    @include mobile {
+      font-size: 1.5rem;
+    }
   }
 
   &-line {

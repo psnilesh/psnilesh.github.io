@@ -8,10 +8,9 @@
   },
   "devDependencies": {
     "@11ty/eleventy": "^2.0.1",
-    "sass": "^1.69.5"
-  },
-  "dependencies": {
+    "sass": "^1.69.5",
     "highlight.js": "^11.11.1",
+    "markdown-it": "^14.1.0",
     "markdown-it-anchor": "^9.2.0",
     "markdown-it-toc-done-right": "^4.2.0"
   }

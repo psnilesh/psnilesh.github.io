@@ -17,7 +17,10 @@ module.exports = function(eleventyConfig) {
       return '<pre class="highlight"><code>' + md.utils.escapeHtml(str) + '</code></pre>';
     }
   })
-    .use(markdownItAnchor)
+    .use(markdownItAnchor, {
+      permalink: false,
+      slugify: (s) => s.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-')
+    })
     .use(markdownItToc, { listType: "ul" });
 
   eleventyConfig.setLibrary("md", md);

@@ -9,6 +9,15 @@ excerpt_separator: "<!--more-->"
 
 This is a collection of best practices and idioms I keep close for writing clean, concise and readable programs in [Go programming language.](https://go.dev/) <!--more-->
 
+## Table of Contents
+
+1. [Initializing structures with optional parameters](#1-initializing-structures-with-optional-parameters)
+2. [Struct field ordering and memory usage](#2-struct-field-ordering-and-memory-usage)
+3. [When are golang interfaces nil?](#3-when-are-golang-interfaces-nil-)
+4. [Adding request IDs to slog logs](#4-adding-request-ids-to-slog-logs)
+
+---
+
 ## 1. Initializing structures with optional parameters
 
 Golang does not support optional function arguments, nor constructors for initializing structures. This makes initializing large structures with lot of optional paramters difficult. Commander Rob Pike came up with a good solution to this problem that is demonstrated in the snippet next.
