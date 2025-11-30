@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Exception handling in Kotlin Coroutines - Almanack</title>
+  <meta name="description" content="Personal blog">
+
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <script src="https://unpkg.com/kotlin-playground@1" data-selector="code.kotlin-playground"></script>
+</head>
+
+  <body>
+    <nav class="nav">
+  <div class="nav-container">
+    <a href="/">
+      <img src="/assets/logo.png" height="40px"/>
+    </a>
+    <ul>
+      <li><a href="/">Posts</a></li>
+      <li><a href="/tags">Tags</a></li>
+      <li><a href="/books">Books</a></li>
+      <li><a href="/about">About</a></li>
+    </ul>
+  </div>
+</nav>
+
+    <main>
+      
+<div class="post">
+  <div class="post-info">
+    
+  </div>
+
+  <h1 class="post-title">Exception handling in Kotlin Coroutines</h1>
+  <div class="post-line"></div>
+  <p>Coroutines are, conceptually, light weight threads that has changed how developers write concurrent programs in Kotlin. They are built using suspendable computations, functions that can <em>suspend</em> its execution in one thread, and resume later from where it left off potentially in a  different thread. <code>suspend</code> functions are also <a href="https://www.youtube.com/watch?v=_hfBv0a09Jc">syntatic sugar over callbacks, as explained by Roman Elizarov</a>. It enabled developers to write concurrent programs in an imperative / procedural style. Moroever, co-operative coroutine scheduler ensures efficient use of native threads by scheduling multiple coroutines on a single thread so when one coroutine is blocked on, say a network request, the other coroutine can get some work done instead of simply blocking or keeping the thread idle. When properly applied, this can significally increase the throughput of web services for certain kind of workloads.</p>
+<p>While coroutines are easy use, handling exceptional cases get tricky real quick. Instead of explaining a boat load of theory about how exceptions are handled, I'm going to provide here few examples that has helped me model how coroutines behave when exceptions are left unhandled.</p>
+<h3 id="point-1)-suspend-functions-can-throw-and-handle-exceptions-like-regular-functions" tabindex="-1">Point 1) Suspend functions can throw and handle exceptions like regular functions</h3>
+<p>Suspend functions running in same coroutine behave just like regular functions when it comes to propagating exceptions. Exceptions can be thrown, caught and re-thrown as you would in a coroutine-less program.</p>
+<pre>
+<code class='kotlin-playground'>
+import kotlinx.coroutines.*
+
+fun main() = runBlocking {
+    try {
+        taskOne()
+        taskTwo()
+    } catch(e: IllegalStateException) {
+        println("Exception caught: $e")
+    }
+}
+
+suspend fun taskOne() {
+    delay(1000)
+    error("taskOne failure")
+}
+
+suspend fun taskTwo() = println("Never called.")
+</code>
+</pre>
+<p>Even when functions suspend in one thread and resume in another, coroutines will take care of carrying over exceptions so we can write traditional looking procedural programs with conventional exception handling.</p>
+<h3 id="point-2)-top-level-launch-and-async-coroutines-handle-exceptions-differently" tabindex="-1">Point 2) Top level <em>launch</em> and <em>async</em> coroutines handle exceptions differently</h3>
+<p><code>launch</code> and <code>async</code> are builders used for creating new coroutines. The former is used for fire and forget blocks and latter
+when the coroutine has something to return.  When exceptions are thrown from <code>launch</code> coroutines, its execution is cancelled and error is propagated to the parent, who in turn will cancel all its children and propagate the error to its parent and so on until the control reaches root coroutine. We can usually set up an <code>UncaughtExceptionHandler</code> to catch such exceptions. Async however, will hold on exceptions until we call <code>await()</code> on <code>Deferred</code> instance if it is a top level coroutine. Otherwise, it propagates up the error just like <code>launch</code>.</p>
+<pre>
+<code class='kotlin-playground'>
+import kotlinx.coroutines.*
+
+fun main() = runBlocking {
+    val scope = CoroutineScope(Job())
+    val job = scope.launch {
+        delay(1000)
+        error("Launch error")
+    }
+    // join will not rethrow above exception, and you'll see the output of below print statement.
+    // Coroutines launched using `launch` builder does not allow users to handle failures 
+    // for good structured concurrency, and will always propagate the error to parent kicking
+    // off a chain cancellation. The default UncaughtExceptionHandler will in this case log the
+    // exception to console.
+    job.join()
+    println("Main exited successfully")
+}
+</code>
+</pre>
+<p>On the other hand, top level <code>async</code> coroutines will not re-throw exception until and unless we call <code>await</code> method of the deferred
+object.</p>
+<pre>
+<code class='kotlin-playground'>
+import kotlinx.coroutines.*
+
+fun main() = runBlocking {
+    val scope = CoroutineScope(Job())
+    val deferred = scope.async {
+        error("Launch error")
+    }
+    delay(1000)
+    // Using join will not rethrow the exception but simply wait for coroutine to complete.
+    deferred.join() 
+    println("Completed join successfully.")
+    // Await will either return the result or throw the exception coroutine failed with
+    deferred.await() 
+    // Below line will not be printed.
+    println("Main exited successfully")
+}
+</code>
+</pre>
+<h3 id="point-3)-non-root-async-coroutines-propagate-exceptions-immediately" tabindex="-1">Point 3) Non-root <em>async</em> coroutines propagate exceptions immediately</h3>
+<p><code>Async</code> coroutines will hold exceptions inside <code>Deferred</code> objects only if they are top level coroutines, i.e coroutines
+started directly from the scope. Nested coroutines will propagate exceptions to parent without
+waiting for the user to invoke <code>await()</code> method on its deferred object. This is necessary to guarantee consistent stuctured concurrency behavior.</p>
+<pre>
+<code class="kotlin-playground">
+import kotlinx.coroutines.*
+
+fun main(): Unit = runBlocking {
+    var scope = CoroutineScope(Job())
+    val job = scope.launch {
+        async {
+            error("launch -> async error")
+        }
+    }
+
+    // Job will fail (but won't rethrow the exception here since we used launch) and log
+    // the above exception to console.
+    job.join()
+
+
+    scope = CoroutineScope(Job())
+    val deferred = scope.async {
+        // Exception thrown below is not held inside the Deferred object
+        // but propagated to parent immediately. The behavior is same
+        // with or without calling await().
+        // Try catch construct cannot detect such errors, as demonstrated
+        // below.
+        try {
+            async {
+            	error("async -> async error")
+        	}
+        } catch(e: IllegalStateException) {
+            println("This catch will not be called.")
+        }
+    }
+    try { 
+	    deferred.await()   
+    } catch (e: Exception) {
+        println("Caught exception: $e")
+    }
+}
+</code>
+</pre>
+<p>To handle such async exceptions, wrap <code>async</code> coroutines in a <code>coroutineScope</code>,</p>
+<pre>
+<code class='kotlin-playground'>
+import kotlinx.coroutines.*
+
+fun main(): Unit = runBlocking {
+    val job = async {
+        try {
+            coroutineScope {
+                async { error("async error") }
+            }   
+        } catch(e: IllegalStateException) {
+            println("Caught async exeption: $e")
+            println("Returning default value ..")
+            42
+        }
+    }
+    // await() doesn't throw exception because it was already handled 
+    // by the parent coroutine.
+    println("Job ouput = " + job.await())
+}
+</code>
+</pre>
+<h3 id="point-4)-an-unhandled-exception-thrown-from-a-coroutine-will-cancel-its-parent-and-all-siblings" tabindex="-1">Point 4) An unhandled exception thrown from a coroutine will cancel its parent and all siblings</h3>
+<p>This forms the basic premise of strucutured concurrency. The concept is not unlike a local variable falling out of scope (or destroyed) when the control exits the scope it was declared in.  Consider the below program where we start three coroutines, deliberately fail one, and observe as its sibling and parents are automatically cancelled.</p>
+<pre>
+<code class='kotlin-playground'>
+import kotlinx.coroutines.*
+
+fun main(): Unit = runBlocking {
+    var scope = CoroutineScope(Job())
+   	scope.launch {
+        val job1 = launch {
+
+            launch {
+                delay(1000)
+                error("Fatal error")
+            }
+            
+            try {
+                delay(10000)
+            } catch(e: CancellationException) {
+                println("job1 cancelled")
+                // Always rethrow CancellationException for the sake of
+                // your program's correctness.  Coroutine library
+                // is counting on it.
+                throw e
+            }
+        }
+        
+        val job2 = launch {
+            try {
+                delay(10000)
+            } catch(e: CancellationException) {
+                println("job2 cancelled")
+                throw e
+            }
+        }
+        
+        job1.join()
+        job2.join()
+    }.join()
+    println("Exiting main normally..")
+}
+</code>
+</pre>
+<p>Above program will show that siblings job1 and job2 was cancelled when a child coroutine failed to handle an exception (or in this case, deliberately threw one).</p>
+<h3 id="point-5)-use-a-supervisor-job-to-prevent-auto-cacellation-of-coroutine-parent-and-siblings" tabindex="-1">Point 5) Use a Supervisor job to prevent auto cacellation of coroutine parent and siblings</h3>
+<p>So far we've seen coroutines cancelling everything when an Exception is left unhandled. There are use-cases where this isn't acceptable. To prevent a coroutine from propagating its error to parent and thus triggering a chain cancellation, create coroutine scopes with <code>SupervisorJob</code>. Coroutines launched as the <strong>immediate</strong> child of <code>SupervisorJob</code> do not propagate exceptions to their parents. In fact, none of their ancestors or siblings are even aware that they have failed. This is demonstrated by the program below.</p>
+<pre>
+<code class='kotlin-playground'>
+import kotlinx.coroutines.*
+
+fun main(): Unit = runBlocking {
+    var scope = CoroutineScope(SupervisorJob())
+
+    // Job1 failure does not cancel job2 or job3.
+   	val job1 = scope.launch {
+        launch {
+            delay(1000)
+            error("Fatal error")
+    	}
+
+        launch {
+            try {
+                delay(2000)
+            } catch (e: CancellationException) {
+                println("Cancelled because SupervisorJob influence " + 
+                       " only directly launched or first level coroutines.")
+            }
+        }
+    }
+    
+    val job2 = scope.launch {
+        try {
+            delay(2000)
+        } catch(e: CancellationException) {
+            println("Never printed : $e")
+        }
+    }
+    
+    val job3 = scope.async {
+        delay(2000)
+        42
+    }
+    println("Result is ${job3.await()}")
+    job1.join()
+    job2.join()
+}
+</code>
+</pre>
+<p>Note that this cancellation behavior is applicable only to coroutines that are launched directly from scope initialized with <code>SupervisorJob</code>. Any nested corourines will behave as usual (i.e recursively cancel everything). There is also a coroutine builder
+<code>supervisorScope</code> that does the same thing,</p>
+<pre>
+<code class='kotlin-playground'>
+import kotlinx.coroutines.*
+
+
+fun main(): Unit = runBlocking {
+    supervisorScope {
+        launch {
+            delay(1000)
+            error("launch error")
+        }.join()
+        
+        val answer = async {
+            delay(2000)
+            42
+        }.await()
+        println("Printing $answer to show I'm not cancelled yet ! ")
+    }
+    println("Completed supervisorScope without exception..")
+    
+    try {
+        // In contrast, coroutineScope will throw the exception it failed with...
+        coroutineScope {
+            launch {
+                delay(1000)
+                error("launch error")
+            }.join()
+
+            val answer = async {
+                delay(2000)
+                42
+            }.await()
+            println("Answer = $answer")
+        }
+    } catch (e: Exception) {
+        println("coroutineScope threw exception: $e")
+    }
+    
+    println("Main exiting successfully...")
+}
+</code>
+</pre>
+<p>In short, there are some weird spots when combining coroutines and exceptions. Its pretty straight forward when exceptions are thrown between suspend functions within a single coroutine but inter-coroutine exceptions must be carefully designed and tested. Classes like <a href="https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-result/">Result</a> can help pass exceptions between coroutines but without actually throwing them.</p>
+<p>There's obviously more to the story than whats written here. Some articles I found immensely helpful are linked below,</p>
+<ul>
+<li><a href="https://kotlinlang.org/docs/exception-handling.html">Kotlin official documentation</a></li>
+<li><a href="https://medium.com/androiddevelopers/exceptions-in-coroutines-ce8da1ec060c">Medium - Exceptions in coroutines</a></li>
+<li><a href="https://www.lukaslechner.com/why-exception-handling-with-kotlin-coroutines-is-so-hard-and-how-to-successfully-master-it/">Lukas Lechner - Why exception handling with Kotlin Coroutines is so hard</a></li>
+</ul>
+
+</div>
+
+
+
+<div class="pagination">
+  
+  
+  
+  
+    <a href="/_posts/2022-12-04-programmers-toolbox/" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/_posts/2022-08-25-cost-of-debt-corporate-tax/" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+    <footer style="clear: both">
+  <span>
+    &copy; <time datetime="Wed Nov 30 2022 00:00:00 GMT+0000 (Coordinated Universal Time)">2022</time> Nilesh. Made with 11ty.
+  </span>
+</footer>
+
+  </body>
+</html>

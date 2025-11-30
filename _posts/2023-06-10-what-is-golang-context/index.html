@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Context in Golang and how to use it - Almanack</title>
+  <meta name="description" content="Personal blog">
+
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <script src="https://unpkg.com/kotlin-playground@1" data-selector="code.kotlin-playground"></script>
+</head>
+
+  <body>
+    <nav class="nav">
+  <div class="nav-container">
+    <a href="/">
+      <img src="/assets/logo.png" height="40px"/>
+    </a>
+    <ul>
+      <li><a href="/">Posts</a></li>
+      <li><a href="/tags">Tags</a></li>
+      <li><a href="/books">Books</a></li>
+      <li><a href="/about">About</a></li>
+    </ul>
+  </div>
+</nav>
+
+    <main>
+      
+<div class="post">
+  <div class="post-info">
+    
+  </div>
+
+  <h1 class="post-title">Context in Golang and how to use it</h1>
+  <div class="post-line"></div>
+  <p>Context allows you to pass request scoped values to various parts of your program and manage the lifecycle of goroutines, mainly ensure they don't leak and / or are terminated correctly. <!--more--> <code>Contexts</code> are everywhere these days. I was first introduced to it by <a href="https://github.com/aws/aws-sdk-go-v2">AWS Go SDK v2</a> and its repeated use of <code>context.TODO()</code> in example snippets. I decided to spend an afternoon trying to learn what it is, and I was glad I did. Lets look at an example.</p>
+<p>Imagine you've written a goroutine that writes fibonacci numbers lazily into an unbuffered channel forever, and another goroutine (e.g main) to read just N numbers from the same channel.</p>
+<pre class="highlight"><code class="hljs"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">fibonacci</span><span class="hljs-params">()</span></span> &lt;-<span class="hljs-keyword">chan</span> <span class="hljs-type">int</span> {
+	first, second := <span class="hljs-number">0</span>, <span class="hljs-number">1</span>
+	result := <span class="hljs-built_in">make</span>(<span class="hljs-keyword">chan</span> <span class="hljs-type">int</span>)
+
+	<span class="hljs-keyword">go</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> {
+		<span class="hljs-keyword">for</span> {
+			third := first + second
+			fmt.Printf(<span class="hljs-string">&quot;Computed fib %d\n&quot;</span>, third)
+			<span class="hljs-comment">// Since this is an unbuffered channel, this channel write will block</span>
+			<span class="hljs-comment">// until the previous written value is read.</span>
+			result &lt;- third
+			first = second
+			second = third
+		}
+		fmt.Printf(<span class="hljs-string">&quot;This goroutine will never terminate&quot;</span>)
+	}()
+
+	<span class="hljs-keyword">return</span> result
+}
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">printFibonacci</span><span class="hljs-params">(n <span class="hljs-type">int</span>)</span></span> {
+	fibCh := fibonacci()
+	<span class="hljs-keyword">for</span> i := <span class="hljs-number">0</span>; i &lt; n; i += <span class="hljs-number">1</span> {
+		fmt.Println(&lt;-fibCh)
+	}
+
+	fmt.Println(<span class="hljs-string">&quot;Exiting from printFibonacci&quot;</span>)
+}
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> {
+	printFibonacci(<span class="hljs-number">5</span>)
+	time.Sleep(<span class="hljs-number">2</span> * time.Second)
+	fmt.Println(<span class="hljs-string">&quot;Exiting from main&quot;</span>)
+}
+</code></pre>
+<p><a href="https://goplay.tools/snippet/offbl-japLx">View in goplay</a></p>
+<p>If you run the above program, you'd notice nothing odd in the output but it has a major flaw. <strong>The goroutine thats generating the next fibonacci number is stuck on channel write call and is leaked.</strong>  Goroutines aren't garbage collected like objects. They need to explicity terminate themselves by returning from the method. It's obvious that the infinite loop inside our fibonacci goroutine is the problem. While one leaked goroutine may seem inconsequential in such a small program, imagine leaking one from every request in a web server thats serving millions of requests a day. Keeping resources locked up more than they should will sooner or later take down your service.</p>
+<p>In this particular instance, we could easily have passed the desired length of the sequence and exited the goroutine after as many fibonacci numbers were generated. A popular approach to prevent producers from outliving consumers is to <a href="https://go.dev/blog/pipelines">use another channel</a> to tell the producer that the consumer has just had enough and that it can stop now. So there'd be two channels in total, one for sending fibonacci numbers from producer to consumer, and another for consumer to say goodbyte to producer. However, using two channels everywhere can be inconvenient and error prone. It also soon becomes complicated when we want do things like cancel all child goroutines of a parent goroutine. Fortunately, some one at Google thought the same and wrote a package for passing around cancellation signals across goroutines that was incorporated into Golang's standard library. That package was <code>Context</code>.</p>
+<p>The idea behind context's cancellation implementation is very similar to the two channel approach mentioned above. Additionally, it keeps track of parent-child relationship of goroutines (with a little bit of our help) and automaticallly cancells all child goroutines when a parent is going away. This is an important feature. To undestand why, imagine you have webserver thats launching a goroutine for every request. This goroutine then launches mutliple other goroutines for reading / writing to database, making API calls to other services etc.  It doesn't make sense for any of this secondary goroutines to outlive the original request scoped goroutine. Context and cancellation can help us achieve just that.</p>
+<p>Lets incorporate Context into earlier program to ensure our goroutine terminates this time.</p>
+<pre class="highlight"><code class="hljs"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">fibonacci</span><span class="hljs-params">(ctx context.Context)</span></span> &lt;-<span class="hljs-keyword">chan</span> <span class="hljs-type">int</span> {
+	result := <span class="hljs-built_in">make</span>(<span class="hljs-keyword">chan</span> <span class="hljs-type">int</span>)
+
+	<span class="hljs-keyword">go</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> {
+		<span class="hljs-keyword">defer</span> <span class="hljs-built_in">close</span>(result)
+		first, second := <span class="hljs-number">0</span>, <span class="hljs-number">1</span>
+		terminate := <span class="hljs-literal">false</span>
+		<span class="hljs-keyword">for</span> !terminate {
+			<span class="hljs-comment">// A quick example on select statement https://go.dev/tour/concurrency/5</span>
+			<span class="hljs-keyword">select</span> {
+			<span class="hljs-keyword">case</span> &lt;-ctx.Done():
+				<span class="hljs-comment">// ctx.Done() will receive a message when the parent wants this</span>
+				<span class="hljs-comment">// coroutine to shutdown.</span>
+				terminate = <span class="hljs-literal">true</span>
+			<span class="hljs-keyword">case</span> result &lt;- (first + second):
+				third := first + second
+				first = second
+				second = third
+			}
+		}
+		fmt.Println(<span class="hljs-string">&quot;Terminating fibonacci generator goroutine&quot;</span>)
+	}()
+
+	<span class="hljs-keyword">return</span> result
+}
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">printFibonacci</span><span class="hljs-params">(n <span class="hljs-type">int</span>)</span></span> {
+	<span class="hljs-comment">// Background is the base context that stays alive as long as the program.</span>
+	<span class="hljs-comment">// Here, we create a new context to pass to our fibonacci goroutine.</span>
+	ctx, cancel := context.WithCancel(context.Background())
+	<span class="hljs-comment">// Schedule cancellation invocation at the end of this method. This will</span>
+	<span class="hljs-comment">// send a signal on ctx.Done() channel. Receivers of ctx are expected to</span>
+	<span class="hljs-comment">// wait for this signal and exit from their goroutine handler as soon as</span>
+	<span class="hljs-comment">// possible.</span>
+	<span class="hljs-keyword">defer</span> cancel()
+	fibCh := fibonacci(ctx)
+	<span class="hljs-keyword">for</span> i := <span class="hljs-number">0</span>; i &lt; n; i += <span class="hljs-number">1</span> {
+		fmt.Println(&lt;-fibCh)
+	}
+
+	fmt.Println(<span class="hljs-string">&quot;Exiting from printFibonacci&quot;</span>)
+}
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> {
+	printFibonacci(<span class="hljs-number">5</span>)
+	time.Sleep(<span class="hljs-number">2</span> * time.Second)
+	fmt.Println(<span class="hljs-string">&quot;Exiting from main&quot;</span>)
+}
+</code></pre>
+<p><a href="https://goplay.tools/snippet/9JgYRSjMoBl">View in goplay</a></p>
+<p>The advantage of a context may not be immediately apparent in this small example, but we've accomplished cancellation of our infinite fibonacci generator coroutine by doing two things, 1) creating a context and scheduling its cancellation at the end of <code>printFibonacci</code> method, and 2) listening on <code>ctx.Done()</code> channel from the producer and exiting if any message was found. You can repeat this pattern from <code>fibonacci(..)</code> method if you wanted to, in which case all the goroutines you launch there would also be recursively cancelled when the control exits <code>printFibonacci</code> method.</p>
+<p>Its important to note that goroutine cancellation is co-operative. That's to say, parent cannot force child goroutine to exit if it isn't listening on <code>ctx.Done()</code> properly. If you're writing a method that's accepting <code>context.Context</code> as the first parameter and launching coroutines from within, its up to you to ensure all the goroutines you launched are properly terminated upon receiving a termination signal from the parent context.</p>
+<p>This pattern has become so popular, and can be found in Go standard library and of course, lot of popular third party libraries. By convention, methods that launch goroutines accept <code>context.Context</code> as the first argument so the caller can manage their lifecycle safetly. Someimtes, we just want to invoke a method without caring much about goroutines and their lifetimes. That's where <code>context.TODO()</code> comes in.  According to the <a href="https://pkg.go.dev/context#TODO">documentation</a>,</p>
+<blockquote>
+<p>TODO returns a non-nil, empty Context. Code should use context.TODO when it's unclear which Context to use or it is not yet available because the surrounding function has not yet been extended to accept a Context parameter.</p>
+</blockquote>
+<p>Besides using to manage goroutine lifetimes, <code>Context</code> can also be used to store request scoped values while writing web sevices (roughly equivalent to <code>ThreadLocal</code> in thread-per-request java services). They can also be used to automatically schedule cancellation of goroutines (and all their children) if they don't finish in a specified duration. They're all very easy to understand and use, and are documented well in the links given below.</p>
+<h2 id="references" tabindex="-1">References</h2>
+<ul>
+<li><a href="https://go.dev/blog/context">Go Concurrency Patterns: Context</a></li>
+<li><a href="https://pkg.go.dev/context">Context package documentation</a></li>
+</ul>
+
+</div>
+
+
+
+<div class="pagination">
+  
+  
+  
+  
+    <a href="/_posts/2023-07-22-effective-golang/" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/_posts/2023-04-23-beware-of-rust-lifetime-elision/" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+    <footer style="clear: both">
+  <span>
+    &copy; <time datetime="Sat Jun 10 2023 00:00:00 GMT+0000 (Coordinated Universal Time)">2023</time> Nilesh. Made with 11ty.
+  </span>
+</footer>
+
+  </body>
+</html>

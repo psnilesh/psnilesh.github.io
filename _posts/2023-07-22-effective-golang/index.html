@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Effective Go programming - Almanack</title>
+  <meta name="description" content="Personal blog">
+
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <script src="https://unpkg.com/kotlin-playground@1" data-selector="code.kotlin-playground"></script>
+</head>
+
+  <body>
+    <nav class="nav">
+  <div class="nav-container">
+    <a href="/">
+      <img src="/assets/logo.png" height="40px"/>
+    </a>
+    <ul>
+      <li><a href="/">Posts</a></li>
+      <li><a href="/tags">Tags</a></li>
+      <li><a href="/books">Books</a></li>
+      <li><a href="/about">About</a></li>
+    </ul>
+  </div>
+</nav>
+
+    <main>
+      
+<div class="post">
+  <div class="post-info">
+    
+  </div>
+
+  <h1 class="post-title">Effective Go programming</h1>
+  <div class="post-line"></div>
+  <p>This is a collection of best practices and idioms I keep close for writing clean, concise and readable programs in <a href="https://go.dev/">Go programming language.</a> <!--more--></p>
+<h2 id="1.-initializing-structures-with-optional-parameters" tabindex="-1">1. Initializing structures with optional parameters</h2>
+<p>Golang does not support optional function arguments, nor constructors for initializing structures. This makes initializing large structures with lot of optional paramters difficult. Commander Rob Pike came up with a good solution to this problem that is demonstrated in the snippet next.</p>
+<pre class="highlight"><code class="hljs"><span class="hljs-keyword">package</span> main
+
+<span class="hljs-keyword">import</span> <span class="hljs-string">&quot;fmt&quot;</span>
+
+<span class="hljs-keyword">type</span> MyConfig <span class="hljs-keyword">struct</span> {
+	num <span class="hljs-type">int</span>
+	str <span class="hljs-type">string</span>
+}
+
+<span class="hljs-comment">// MyConfig{} will create an object with num = 0 and str = &quot;&quot;. However,</span>
+<span class="hljs-comment">// what if we wanted them to default to -1 and &quot;hello&quot; respectively,</span>
+<span class="hljs-comment">// while also allowing callers to override selective values ?</span>
+<span class="hljs-comment">// Keep reading.</span>
+
+<span class="hljs-comment">// Implements Stringer interface for printing config later.</span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(c *MyConfig)</span></span> String() <span class="hljs-type">string</span> {
+	<span class="hljs-keyword">return</span> fmt.Sprintf(<span class="hljs-string">&quot;MyConfig{num: %v, str: %v}&quot;</span>, c.num, c.str)
+}
+
+<span class="hljs-keyword">type</span> OptionFunc <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(*MyConfig)</span></span>
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">WithNumber</span><span class="hljs-params">(num <span class="hljs-type">int</span>)</span></span> OptionFunc {
+	<span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(config *MyConfig)</span></span> { config.num = num }
+}
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">WithStr</span><span class="hljs-params">(str <span class="hljs-type">string</span>)</span></span> OptionFunc {
+	<span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(config *MyConfig)</span></span> { config.str = str}
+}
+
+<span class="hljs-comment">// MyConfig&#x27;s constructor function</span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewConfig</span><span class="hljs-params">(ops ...OptionFunc)</span></span> *MyConfig {
+	config := &amp;MyConfig{
+		<span class="hljs-comment">// Initialize to default values</span>
+		num: <span class="hljs-number">-1</span>,
+		str: <span class="hljs-string">&quot;hello&quot;</span>,
+	}
+	<span class="hljs-keyword">for</span> _, op := <span class="hljs-keyword">range</span> ops {
+		op(config)
+	}
+	<span class="hljs-keyword">return</span> config
+}
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> {
+	<span class="hljs-comment">// Config with all defaul values</span>
+	config1 := NewConfig()
+	<span class="hljs-comment">// Config with non-default num and default str</span>
+	config2 := NewConfig(WithNumber(<span class="hljs-number">100</span>))
+	<span class="hljs-comment">// Config with non-default num and str</span>
+	config3 := NewConfig(WithNumber(<span class="hljs-number">200</span>), WithStr(<span class="hljs-string">&quot;goodbye&quot;</span>))
+
+	fmt.Println(config1) <span class="hljs-comment">// MyConfig{num: -1, str: hello}</span>
+	fmt.Println(config2) <span class="hljs-comment">// MyConfig{num: 100, str: hello}</span>
+	fmt.Println(config3) <span class="hljs-comment">// MyConfig{num: 200, str: goodbye}</span>
+}
+</code></pre>
+<p>Code is pretty self-explanatory. With a little bit of closure magic (anonymous inner function returned from <code>With*</code>), we're
+able to override specific fields of the public structure while also maintaining the ability to initialize them to a sane default (if zero values don't suffice).  Note that this doesn't prevent your consumers from initializing the struct directly using <code>MyConfig{}</code>, so the recommended initialization method must be documented clearly.</p>
+<p>Sometimes structs will have to be modified to add new fields, in which case, constructor function can be modified to initialize those
+fields to non-zero default values.</p>
+<h2 id="2.-struct-field-ordering-and-memory-usage" tabindex="-1">2. Struct field ordering and memory usage</h2>
+<p>Struct packing concept may not be entirely alien to those coming from C programming language. In summary, the order in which struct fields are defined can
+have a huge impact on memory, especially while processing large amounts of data modelled as structs.</p>
+<p>Consider the below program where we have defined two structs, <code>MyStruct1</code> and <code>MyStruct2</code>, both with same fields but in different order. As long as the struct
+is contained within the program (i.e is not serialized to disk or sent over a network in binary), order of fields is usually not much of a concern. However,
+as the output of the program shows, <code>MyStruct2</code> take <code>25%</code> fewer bytes than <code>MyStruct1</code>, no a small difference.</p>
+<pre class="highlight"><code class="hljs"><span class="hljs-keyword">package</span> main
+
+<span class="hljs-keyword">import</span> (
+	<span class="hljs-string">&quot;fmt&quot;</span>
+	<span class="hljs-string">&quot;unsafe&quot;</span>
+)
+
+<span class="hljs-comment">// Note that string data type has a constant size of 16 bytes,</span>
+<span class="hljs-comment">// since it is mainly a pointer to array of chars / runes</span>
+<span class="hljs-comment">// in memory else where.</span>
+<span class="hljs-keyword">type</span> MyStruct1 <span class="hljs-keyword">struct</span> {
+	x <span class="hljs-type">int8</span>
+	y <span class="hljs-type">string</span>
+	z <span class="hljs-type">int8</span>
+}
+
+<span class="hljs-keyword">type</span> MyStruct2 <span class="hljs-keyword">struct</span> {
+	x <span class="hljs-type">int8</span>
+	z <span class="hljs-type">int8</span>
+	y <span class="hljs-type">string</span>
+}
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> {
+	fmt.Printf(
+		<span class="hljs-string">&quot;Size of MyStruct1 = %v \nSize of MyStruct2 = %v&quot;</span>,
+		unsafe.Sizeof(MyStruct1{}),
+		unsafe.Sizeof(MyStruct2{}),
+	)
+}
+<span class="hljs-comment">// Output</span>
+<span class="hljs-comment">// Size of MyStruct1 = 32</span>
+<span class="hljs-comment">// Size of MyStruct2 = 24</span>
+</code></pre>
+<p><a href="https://goplay.tools/snippet/abpsMnOxPUU">Try on playground</a></p>
+<p>So what brings about this difference ? Fields are stored at <a href="https://en.wikipedia.org/wiki/Word_(computer_architecture)">CPU word</a> boundaries in memory, which is usually 64 bits (8 bytes) these days. In our first struct, <code>x</code> takes only one byte, but <code>y</code> needs 16, so the compiler is forced to keep the remaining 7 bytes empty and start the string at next word boundary. Fields must align with word beginnings especially if they span across multiple words. However, when <code>x</code> and <code>z</code> are declared back to back in the second struct, compiler can pack them into a single word of 8 bytes, because they fit.</p>
+<p>So what used to be 8 bytes for <code>x</code>, 16 for <code>y</code> and another 8 for <code>z</code> in <code>MyStruct1</code>, effectively became 8 for <code>x</code> and <code>z</code>, and 16 for <code>z</code> in <code>MyStruct2</code>, reducing the total size of the struct by 1 word or 8 bytes. Though this does reduce memory, it adds a small runtime overhead. Since two fields are packed into a single word, compiler must include instructions to &quot;unpack&quot; them before operating on those fields (addition, subtraction etc.), because CPU assembly instructions assume data to begin at word boundaries.</p>
+<p>In the end, struct packing is an effective technique to reduce your program's memory consumption, though it may add a small runtime overhead. Like when doing any other performance improvements, use the data from profiling your program before and after the change to make a decision.</p>
+<h2 id="3.-when-are-golang-interfaces-nil-%3F" tabindex="-1">3. When are golang interfaces nil ?</h2>
+<p>Interfaces in golang have two fields, data type and value (pointer to an instance of data type). An interface is nil only when <strong>both</strong> these values are nil. This can be surprising to new
+go devs.</p>
+<pre class="highlight"><code class="hljs"><span class="hljs-keyword">package</span> main
+
+<span class="hljs-keyword">import</span> <span class="hljs-string">&quot;fmt&quot;</span>
+
+<span class="hljs-keyword">type</span> myError <span class="hljs-keyword">struct</span> {}
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(e *myError)</span></span> Error() <span class="hljs-type">string</span> { <span class="hljs-keyword">return</span> <span class="hljs-string">&quot;Stub message&quot;</span>; }
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">giveIncorrectError</span><span class="hljs-params">(i <span class="hljs-type">int</span>)</span></span> <span class="hljs-type">error</span> {
+	<span class="hljs-comment">// Golang has already learned the type of interface is myError,</span>
+	<span class="hljs-comment">// so nil checks on error returned from this method will always</span>
+	<span class="hljs-comment">// be false</span>
+	<span class="hljs-keyword">var</span> err *myError
+	<span class="hljs-keyword">if</span> i &lt; <span class="hljs-number">0</span> {
+		err = &amp;myError{}
+	}
+	<span class="hljs-keyword">return</span> err
+}
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">giveCorrectError</span><span class="hljs-params">(i <span class="hljs-type">int</span>)</span></span> <span class="hljs-type">error</span> {
+	<span class="hljs-comment">// No idea what kind of object this interface is pointing to</span>
+	<span class="hljs-comment">// so nil checks will return true</span>
+	<span class="hljs-keyword">var</span> err <span class="hljs-type">error</span>
+	<span class="hljs-keyword">if</span> i &lt; <span class="hljs-number">0</span> {
+		err = &amp;myError{}
+	}
+	<span class="hljs-keyword">return</span> err
+}
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> {
+	<span class="hljs-keyword">var</span> e1 <span class="hljs-type">error</span>
+	fmt.Println(e1 == <span class="hljs-literal">nil</span>) <span class="hljs-comment">// Prints true</span>
+
+	<span class="hljs-keyword">var</span> myErr *myError = <span class="hljs-literal">nil</span>
+	<span class="hljs-keyword">var</span> e2 <span class="hljs-type">error</span> = myErr
+	fmt.Println(e2 == <span class="hljs-literal">nil</span>) <span class="hljs-comment">// Prints false</span>
+
+	fmt.Println(giveIncorrectError(<span class="hljs-number">-1</span>) == <span class="hljs-literal">nil</span>) <span class="hljs-comment">// Prints false</span>
+	fmt.Println(giveIncorrectError(<span class="hljs-number">1</span>) == <span class="hljs-literal">nil</span>)  <span class="hljs-comment">// Prints false</span>
+	fmt.Println(giveCorrectError(<span class="hljs-number">-1</span>) == <span class="hljs-literal">nil</span>) <span class="hljs-comment">// Prints false</span>
+	fmt.Println(giveCorrectError(<span class="hljs-number">1</span>) == <span class="hljs-literal">nil</span>)  <span class="hljs-comment">// Prints true</span>
+}
+</code></pre>
+<p><a href="https://goplay.tools/snippet/p54yxPbfYhA">Try on playground</a></p>
+<p><code>Error</code> is by far the most used interface, and so it is considered a good practice to always return <code>nil</code> explicitly on success instead of using local variables to avoid overlooking this minor detail. It also helps to unit test both success and failure code paths, with assertions on the nil-ness of the error value returned.</p>
+<h2 id="4.-adding-request-ids-to-slog-logs" tabindex="-1">4. Adding request IDs to slog logs</h2>
+<p><a href="https://go.dev/doc/go1.21">Golang 1.21 introduced slog</a> package into stdlib. It provided much needed improvements over <code>log</code> package that exists in golang today. As usual, the package from official go team comes with excellent documentation on how to use it. If you're using slog in microservices, one common use-case would be to tag logs with a unique request ID so all log events corresponding to a request can be quickly collected for debugging. We could do just append request ID to every log, but is repetitive and cluttering. Instead, below snippet shows how a custom log handler can help to avoid this repetition.</p>
+<pre class="highlight"><code class="hljs"><span class="hljs-keyword">package</span> main
+
+<span class="hljs-keyword">import</span> (
+	<span class="hljs-string">&quot;context&quot;</span>
+	<span class="hljs-string">&quot;os&quot;</span>
+	<span class="hljs-string">&quot;time&quot;</span>
+
+	<span class="hljs-string">&quot;github.com/google/uuid&quot;</span>
+	<span class="hljs-string">&quot;golang.org/x/exp/slog&quot;</span>
+)
+
+<span class="hljs-keyword">const</span> CtxKeyRequestId = <span class="hljs-string">&quot;RequestID&quot;</span>
+
+<span class="hljs-keyword">type</span> CustomSlogHandler <span class="hljs-keyword">struct</span> {
+	slog.Handler
+}
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(h CustomSlogHandler)</span></span> Handle(ctx context.Context, r slog.Record) <span class="hljs-type">error</span> {
+	requestId, ok := ctx.Value(CtxKeyRequestId).(<span class="hljs-type">string</span>)
+	<span class="hljs-keyword">if</span> ok {
+		r.AddAttrs(slog.Attr{CtxKeyRequestId, slog.StringValue(requestId)})
+	}
+	<span class="hljs-keyword">return</span> h.Handler.Handle(ctx, r)
+}
+
+<span class="hljs-comment">// package level logger</span>
+<span class="hljs-keyword">var</span> logger = slog.New(
+	CustomSlogHandler{slog.NewJSONHandler(os.Stderr, <span class="hljs-literal">nil</span>)},
+)
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> {
+	rootCtx := context.Background()
+
+	<span class="hljs-keyword">for</span> i := <span class="hljs-number">1</span>; i &lt;= <span class="hljs-number">3</span>; i += <span class="hljs-number">1</span> {
+		<span class="hljs-keyword">go</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> {
+			<span class="hljs-comment">// Create a child context with request scoped values, or just requestId for now.</span>
+			requestCtx := context.WithValue(rootCtx, CtxKeyRequestId, uuid.New().String())
+			logger.InfoCtx(requestCtx, <span class="hljs-string">&quot;hello world&quot;</span>)
+			time.Sleep(<span class="hljs-number">5</span> * time.Millisecond)
+			logger.InfoCtx(requestCtx, <span class="hljs-string">&quot;goodbye world&quot;</span>)
+		}()
+	}
+
+	time.Sleep(<span class="hljs-number">2</span> * time.Second)
+}
+
+<span class="hljs-comment">// {&quot;time&quot;:&quot;2009-11-10T23:00:00Z&quot;,&quot;level&quot;:&quot;INFO&quot;,&quot;msg&quot;:&quot;hello world&quot;,&quot;RequestID&quot;:&quot;85186bd8-ce97-47c7-b142-cbe5f91af470&quot;}</span>
+<span class="hljs-comment">// {&quot;time&quot;:&quot;2009-11-10T23:00:00Z&quot;,&quot;level&quot;:&quot;INFO&quot;,&quot;msg&quot;:&quot;hello world&quot;,&quot;RequestID&quot;:&quot;296d32fb-146b-4bac-bef0-bbefa5e0f0a2&quot;}</span>
+<span class="hljs-comment">// {&quot;time&quot;:&quot;2009-11-10T23:00:00Z&quot;,&quot;level&quot;:&quot;INFO&quot;,&quot;msg&quot;:&quot;hello world&quot;,&quot;RequestID&quot;:&quot;3207aca7-ac26-4b46-a937-018c8eb7bb39&quot;}</span>
+
+<span class="hljs-comment">// {&quot;time&quot;:&quot;2009-11-10T23:00:00.005Z&quot;,&quot;level&quot;:&quot;INFO&quot;,&quot;msg&quot;:&quot;goodbye world&quot;,&quot;RequestID&quot;:&quot;3207aca7-ac26-4b46-a937-018c8eb7bb39&quot;}</span>
+<span class="hljs-comment">// {&quot;time&quot;:&quot;2009-11-10T23:00:00.005Z&quot;,&quot;level&quot;:&quot;INFO&quot;,&quot;msg&quot;:&quot;goodbye world&quot;,&quot;RequestID&quot;:&quot;85186bd8-ce97-47c7-b142-cbe5f91af470&quot;}</span>
+<span class="hljs-comment">// {&quot;time&quot;:&quot;2009-11-10T23:00:00.005Z&quot;,&quot;level&quot;:&quot;INFO&quot;,&quot;msg&quot;:&quot;goodbye world&quot;,&quot;RequestID&quot;:&quot;296d32fb-146b-4bac-bef0-bbefa5e0f0a2&quot;}</span>
+</code></pre>
+<p><a href="https://goplay.tools/snippet/5dBKbzJO0VW">Try on playground</a></p>
+<p>Some devs prefer creating sub-loggers with all request-scoped values and saving that on to the context to be retrieve by other methods. There is nothing wrong with this, but my personal preference is to use <code>context</code> to store only data, not objects operating on that data. As usual, some benchmarking might also help break the tie if you are stuck choosing one of these approaches.</p>
+<h2 id="references" tabindex="-1">References</h2>
+<ol>
+<li><a href="https://commandcenter.blogspot.com/2014/01/self-referential-functions-and-design.html">Self-referencial functions and the design of options - Rob Pike</a></li>
+<li><a href="https://www.reddit.com/r/golang/comments/13et07w/logging_context_values_using_slog/">Reddit: Logging context values using slog</a></li>
+<li><a href="https://go.dev/doc/faq#nil_error">Golang FAQ: Why is my nil error value not equal to nil ?</a></li>
+<li><a href="http://golang50shad.es/">50 Shades of Go: Traps, Gotchas, and Common Mistakes</a></li>
+</ol>
+
+</div>
+
+
+
+<div class="pagination">
+  
+  
+  
+  
+  
+    <a href="/_posts/2023-06-10-what-is-golang-context/" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+    <footer style="clear: both">
+  <span>
+    &copy; <time datetime="Sat Jul 22 2023 00:00:00 GMT+0000 (Coordinated Universal Time)">2023</time> Nilesh. Made with 11ty.
+  </span>
+</footer>
+
+  </body>
+</html>

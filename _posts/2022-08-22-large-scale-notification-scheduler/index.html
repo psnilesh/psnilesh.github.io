@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Designing a large scale notification scheduler - Almanack</title>
+  <meta name="description" content="Personal blog">
+
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <script src="https://unpkg.com/kotlin-playground@1" data-selector="code.kotlin-playground"></script>
+</head>
+
+  <body>
+    <nav class="nav">
+  <div class="nav-container">
+    <a href="/">
+      <img src="/assets/logo.png" height="40px"/>
+    </a>
+    <ul>
+      <li><a href="/">Posts</a></li>
+      <li><a href="/tags">Tags</a></li>
+      <li><a href="/books">Books</a></li>
+      <li><a href="/about">About</a></li>
+    </ul>
+  </div>
+</nav>
+
+    <main>
+      
+<div class="post">
+  <div class="post-info">
+    
+  </div>
+
+  <h1 class="post-title">Designing a large scale notification scheduler</h1>
+  <div class="post-line"></div>
+  <p>I was recently presented a problem of designing a scalable service for scheduling notifications / callbacks that can service large no. of clients simultaneously. While scheduling a task in a single machine is trivial (<code>Cron</code>), doing so in a distributed environment is easier said than done. This post is a summary of my thought process leading up to a viable solution, concluding with some thoughts on potential improvements. <!--more--></p>
+<h2 id="requirements" tabindex="-1">Requirements</h2>
+<p>Design a REST API service that allow its clients to schedule a callback (HTTP GET) as far out as 7 days. Input to <code>Schedule</code> request will contain a fully qualified http(s) URL and a UTC timestamp at which the endpoint is to be called.</p>
+<pre class="highlight"><code>ScheduleCallbackRequest {
+    callbackUrl: String, 
+    callbackAt: UTCTimestamp
+}
+</code></pre>
+<p>Since the purpose of this exercise is to think through challenges associated with building something like this, we will refrain from using any <em>scheduling service</em> offered by cloud platforms (e.g AWS Cloudwatch events).</p>
+<h2 id="technical-specifications" tabindex="-1">Technical specifications</h2>
+<p>Lets start by dissecting the problem into technical requirements :-</p>
+<ul>
+<li>Our service must be able to accept schedule requests from any authenticated (and authorized) client at all times. We'll stick with scheduling for now and leave authentication out of our discussion. There are abundant solutions for service to service AuthN / AuthZ ranging from AWS IAM to OAuth2.0 - just use any one of them.</li>
+<li>Wherever time is mentioned, granularity will be limited to seconds. Systems that want to schedule tasks with sub-second accuracy are better off doing so themsevles locally.</li>
+<li>A callback at precisely the requested time (<code>callbackAt</code>) is near impossible due to network delays, clock skews and other latent behaviors in design. However, our sytem should guarantee a grace period SLA of say, 30 seconds, within which time the callback must be made.</li>
+<li>We'll adhere to at-least once delivery mechanism, ensuring every callback is invoked one or more times.</li>
+<li>To have a sense of the scale of solution we need to build, lets assume this service will cater to <strong>hundreds of clients scheduling thousands of callbacks per second</strong>.</li>
+</ul>
+<h2 id="approach-1%3A-a-potato-solution-using-coroutines" tabindex="-1">Approach 1: A potato solution using coroutines</h2>
+<p>The first solution that ocurred to me was naive, incomplete and had a severe flaw. Nevertheless, I'll still explain it quickly here.
+<img src="https://miro.medium.com/max/570/1*DFxGm7k7q3PvecP15nn1Fw.jpeg" alt="">
+<em>Fig 1. Fleet of EC2 instances fronted by Elastic Load balancer</em></p>
+<p>As shown in the above architecture diagram, there isn't a lot of moving parts in it. It was a standard service whose compute was distributed across AZs and fronted by a  load balancer.  The bulk of heavy lifting was done within the compute instances, through the magic of <a href="https://kotlinlang.org/docs/coroutines-overview.html">Coroutines</a>. If you're unfamiliar, couroutines are conceptually light weight threads that can run several asynchronous tasks that aren't compute intensive on the same thread. Recent hype around coroutines was a result of Android adopting Kotlin as a first class language, which supported coroutines quite well. What appealed to me most was that we could launch <a href="https://kotlinlang.org/docs/coroutines-basics.html#coroutines-are-light-weight">tens of thousands of coroutines</a> in the same process / instance that shared a limited thread pool without exhausting any sytem resources. It was the kind of scale our solution required.</p>
+<p>API handler might have looked like something like this,</p>
+<pre class="highlight"><code class="hljs"><span class="hljs-keyword">class</span> <span class="hljs-title class_">ScheduleCallbackController</span> {
+
+    <span class="hljs-function"><span class="hljs-keyword">fun</span> <span class="hljs-title">handle</span><span class="hljs-params">(request: <span class="hljs-type">ScheduleCallbackRequest</span>)</span></span>: ScheduleCallbackResponse {
+        <span class="hljs-comment">// Validate request (expired timestamp, invalid url etc.)</span>
+        <span class="hljs-keyword">val</span> delayMs = milliSecondsUntil(request.callbackAt)
+        coroutineScope.launch {
+            delay(delayMs)
+            httpGet(request.callbackUrl)
+        }
+        <span class="hljs-comment">// launch() is non-blocking and would return immediately after</span>
+        <span class="hljs-comment">// job was submitted, allowing us to return an aknowledgement</span>
+        <span class="hljs-comment">// to our clients.</span>
+        <span class="hljs-keyword">return</span> ScheduleCallbackResponse(OK)
+    }
+
+}
+</code></pre>
+<p>As mentioned earlier, this solution suffered from a fatal flaw. Application state, i.e callbacks pending, was tied to particular instances and would be lost
+when they were taken down. Since coroutines are ephermal, even something as trivial as a new deployment would result in losing all scheduled callbacks
+from that instance when the JVM process was restarted. This was simply not acceptable. My eagerness to use the latest weapon from my arsenal was replaced by lingering anguish. Though I thought of separating state into an external store, I couldn't help but feel I was hacking around something severe I overlooked. So I started over.</p>
+<h2 id="approach-2%3A-sqs-and-message-visibility" tabindex="-1">Approach 2: SQS and message visibility</h2>
+<p>The previous approach wasn't a complete waste of time, since it made me realize the state of program had to be maintained elsewhere. The requirement however didn't explicitly call for a persistent store, since the requests are technically kept around only until they expire. A queueing model felt more appropriate. AWS SQS is a fully managed queueing service that can send, store (14 days), and receive messages at any volume, without losing messages or requiring other services to be available. Between Standard and FIFO SQS queues, former seemed more appropriate for the problem's functional and scale requirements.</p>
+<p>Now the callback requests are qeueud, they had to be retrieved and processed around the time they expire. <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html">SQS SendMessage API</a> takes in a parameter <strong>DelaySeconds</strong> that's defined as</p>
+<blockquote>
+<p>The length of time, in seconds, for which to delay a specific message. Valid values: 0 to 900. Maximum: 15 minutes. Messages with a positive DelaySeconds value become available for processing after the delay period is finished. If you don't specify a value, the default value for the queue applies.</p>
+</blockquote>
+<p>So callback requests that are coming due 15 minutes, can be pushed to the SQS queue with DelaySeconds equal to time until expiry. Requests that need longer wait periods, can be pushed to the qeueue with 15 mins of DelaySeconds, and repeat the process until we are closer to expiring.</p>
+<p>Consider a sample request whose callback time is 50 minutes in the future,</p>
+<ol>
+<li>API handler will push the request to SQS queue with DelaySeconds 0.</li>
+<li>A compute (lamda, EC2 etc) polling the queue will receive the message within few seconds, calculate there is 50 more minutes to go before invoking callback,
+and so enqueue it back to the queue with a delay period of 15 minutes.</li>
+<li>After 15 minutes (more or less), compute will once again receive the same message. Since there is still 35 minutes to go, it once again push the message
+back to the queue with a delay period of 15 minutes. When the message is received for a third time, delay period is set to 5 minutes.</li>
+<li>Fourth time the message is received, compute instance will realize its time for callback by comparing the <code>callbackAt</code> timestamp and current timestamp. It proceeds to issue one, bringing the life of the request to an end.</li>
+</ol>
+<p>Below sequence diagram summarizing interactions within various components in our system,</p>
+<p><img src="https://www.planttext.com/api/plantuml/png/dP51ImGn38Nl_HLXBtPWXVNWmG5bbps81s55_07TcOTJJDkrIHN_lHtNWO71YvT0IDxt7ibMr6KjWOqhcc89HsIpPu-eT7b7pzs0lZ3oxl3GalnsUyTyTDqRsP9vJUe36ZDV7QLF1GKjdOeCP3FU2qJNr8FT5ztIHXhpit58N3KpGKO7_u57YBXNY6sCOwLLDtds2H8lbBeKG7q1-KXNrnHybDKVo373CiBDPWm15ipe8rKcBDSCf8Fxfy44tTLJKaoVjbdO-RDN7IxGvoUqDAYUxg5sqhnahfZOcsqjzN7V" alt="">
+<em>Fig 2. Sequence diagram (<a href="https://www.planttext.com/?text=dP51ImGn38Nl_HLXBtPWXVNWmG5bbps81s55_07TcOTJJDkrIHN_lHtNWO71YvT0IDxt7ibMr6KjWOqhcc89HsIpPu-eT7b7pzs0lZ3oxl3GalnsUyTyTDqRsP9vJUe36ZDV7QLF1GKjdOeCP3FU2qJNr8FT5ztIHXhpit58N3KpGKO7_u57YBXNY6sCOwLLDtds2H8lbBeKG7q1-KXNrnHybDKVo373CiBDPWm15ipe8rKcBDSCf8Fxfy44tTLJKaoVjbdO-RDN7IxGvoUqDAYUxg5sqhnahfZOcsqjzN7V">source</a>)</em></p>
+<p>The above approach has a drawback that we're invoking the SQS handler associated with the queue cyclically. This makes it prone to infinite loops which can be disastrous and really hard to recover from. Instead, if the qeueue is configured to event source a Lambda function, it can use <a href="https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html#services-sqs-batchfailurereporting">batch failure reporting</a> feature to prevent messages from being deleted from the queue before they are due without throwing an error.</p>
+<p>The lambda function would receive visible messages in batches, and would filter those message that are due for processing. It might decide to forward these messages to another queue for immediate processing while others are reported as <em>failures</em>. Lambda SQS pollers will delete all messages except those reported as failed from the source queue. The cycle repeats when the <em>failed</em> messages become visible in the source queue again.  We can configure <code>maxReceiveCount</code> on the source queue to move messages that are stuck to a dead letter queue. If the visibility timeout is 1hr and our service is only accepting events expiring within 24 hrs, a <code>maxReceiveCount</code> of 24+ might be a good fit.  Note that higher the visibility timeout, less precise our firing mechanism becomes.</p>
+<p><img src="https://www.planttext.com/api/plantuml/png/RO_D3e8m48JlVOeU8T4Nu63mDo7HHECJB32HXhPWkylpMvKO3XvtvflTsJ8o1HPd5GaFNboDeFRMmBDUR_IzwT2AHTXUgqB7UTgJjJKrlSuas9Lcuv2h9VgEtWI2GeyIEvq5F0MHS_LHt_QPNDrIeOsVXXuxuYPX3Z7I0p5NNti9TkHRYuFWEALoyJyy7mqOXy2VfHN3dSXO2KYP4Rur_d7vHSiafEzV" alt="">
+<em>Fig 3. Lambda batch item failure reporting (<a href="https://www.planttext.com/?text=dP51ImGn38Nl_HLXBtPWXVNWmG5bbps81s55_07TcOTJJDkrIHN_lHtNWO71YvT0IDxt7ibMr6KjWOqhcc89HsIpPu-eT7b7pzs0lZ3oxl3GalnsUyTyTDqRsP9vJUe36ZDV7QLF1GKjdOeCP3FU2qJNr8FT5ztIHXhpit58N3KpGKO7_u57YBXNY6sCOwLLDtds2H8lbBeKG7q1-KXNrnHybDKVo373CiBDPWm15ipe8rKcBDSCf8Fxfy44tTLJKaoVjbdO-RDN7IxGvoUqDAYUxg5sqhnahfZOcsqjzN7V">source</a>)</em></p>
+<h3 id="scaling-and-sla-management" tabindex="-1">Scaling and SLA management</h3>
+<p>How well does this solution scale ? Per AWS, Standard queues support a nearly unlimited number of API calls per second, per API action (SendMessage, ReceiveMessage, or DeleteMessage). However, there can only be a maximum of approximately 120,000 in flight messages which might become a problem since we're effectively reading back requests at roughly every 15 minutes. If it does become an issue, either request a quote increase or distribute messages across multiple queues so no single queue will have more than 120,000 in flight messages. These details can be figured out by working backwards from the throughput expected by clients.</p>
+<p>As for the compute platform for queue pollers, there are both classic and serverless options to chose from. Both have its own advantages and shortcomings. If a lambda is event sourced directly by SQS, it <em>might</em> hit concurrency limits when queue is backed up with millions of requests. A static fleet of hosts would seem more appropriate to counter this, but isn't as elastic as lambda to queue load. Hence, to meet client SLAs, the fleet will likley have to be kept scaled high enough at all times to handle max requests from all clients simultaneously. Batch item failure reporting is a lambda exlusive feature so no other compute options are feasible.</p>
+<h3 id="failure-and-risk-management" tabindex="-1">Failure and risk management</h3>
+<blockquote>
+<p><em>&quot;Everything fails, all the time&quot;</em> - Werner Vogels, AWS CTO</p>
+</blockquote>
+<p>No design would be complete without touching upon failure handling and risks.</p>
+<ul>
+<li>
+<p><strong>Missing customer SLA</strong> - Undisputedly, the biggest risk. As mentioned earlier, the callback should be made within 30 seconds of expiry, but unfortunately this isn't something that can be enforced in SQS. The only way to ensure the service can honor the SLA at peak load is to rigorously and repeatedly load test.</p>
+</li>
+<li>
+<p><strong>Bad deployments</strong> - Any problems with application code should be rolled back automatically so as to affect minimal number of requests. Requests that failed
+would have been moved to a dead letter queue. They can be replayed if not expired, dropped or dispatched otherwise per client expectations.</p>
+</li>
+<li>
+<p><strong>Multiple callbacks</strong> - Standard SQS queues follow at least once delivery model, so certain messages can be expected to be received more than once. This could potentially trigger multiple callbacks when they expire. Exactly once delivery model is incredible difficult to achieve without compromising resiliency or throughput in a distributed system. Therefore, clients must be made aware of this behavior and their systems must be prepped to handle more than one callbacks gracefully. For instance, multiple callbacks to a client who is only sending an e-mail wouldn't be a terrible thing. A duplicate e-mail has far less consequences than, say, a monetary transaction. In the case of latter, payment gateways usually employ strict measure to execute them once and only once, so clients can rely on them to de-dupe. If client is backing up a database once a day using callback, redundant callback arriving when a back up is already in progress or have already completed once for the day can be safely ignored. Bottom line is, shortcomings of at-least once delivery model can be easily overcome within the applications on the receiving end of callbacks.</p>
+</li>
+<li>
+<p><strong>HTTP API latency</strong> - It'd be prudent to set a timeout of few seconds on the http callback. Clients aren't allowed to execute any long running operations on
+the callback request synchronously, or they might end up hogging our precious and limited callback threads.</p>
+</li>
+<li>
+<p><strong>HTTP failures</strong> - Clients are allowed to have transient failures as well, so such callbacks must be retried at least once before abandoned. An addition field <code>retryCount</code> in the SQS message can help keep track of retry count and add a delay b/w susequent retries using the same delay mechanism.</p>
+</li>
+</ul>
+<h2 id="wrapping-up" tabindex="-1">Wrapping up</h2>
+<p>In retrospect, using coroutines might look silly. But it connected the dots that led me to SQS. However, I am not under a delusion that this is the best solution to this problem. There's always more to a broad or generic design problem than what meets the eye. But until I come across a better one, this'll have to do.</p>
+
+</div>
+
+
+
+<div class="pagination">
+  
+  
+  
+  
+    <a href="/_posts/2022-08-25-cost-of-debt-corporate-tax/" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/_posts/2022-08-21-closer-look-at-roe/" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+    <footer style="clear: both">
+  <span>
+    &copy; <time datetime="Mon Aug 22 2022 00:00:00 GMT+0000 (Coordinated Universal Time)">2022</time> Nilesh. Made with 11ty.
+  </span>
+</footer>
+
+  </body>
+</html>

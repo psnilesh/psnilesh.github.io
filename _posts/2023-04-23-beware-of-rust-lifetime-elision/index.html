@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Rust lifetimes and Elision - Almanack</title>
+  <meta name="description" content="Personal blog">
+
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <script src="https://unpkg.com/kotlin-playground@1" data-selector="code.kotlin-playground"></script>
+</head>
+
+  <body>
+    <nav class="nav">
+  <div class="nav-container">
+    <a href="/">
+      <img src="/assets/logo.png" height="40px"/>
+    </a>
+    <ul>
+      <li><a href="/">Posts</a></li>
+      <li><a href="/tags">Tags</a></li>
+      <li><a href="/books">Books</a></li>
+      <li><a href="/about">About</a></li>
+    </ul>
+  </div>
+</nav>
+
+    <main>
+      
+<div class="post">
+  <div class="post-info">
+    
+  </div>
+
+  <h1 class="post-title">Rust lifetimes and Elision</h1>
+  <div class="post-line"></div>
+  <h1 id="introduction-to-lifetimes" tabindex="-1">Introduction to Lifetimes</h1>
+<p>Much has been said and written already about Rust's lifetimes. In summary, they enable the Rust borrow checker to determine how long a reference will be valid for. <!--more--> This is crucial because operating on a dead or stale reference can result in unpredictable behavior and memory unsafe programs, going back on the promise of Rust.</p>
+<p>Lets use a simple example to demonstrate how lifetimes help the borrow checker do its job.</p>
+<pre class="highlight"><code class="hljs"><span class="hljs-keyword">fn</span> <span class="hljs-title function_">get_last_word</span>(text: &amp;<span class="hljs-type">str</span>, seperators: &amp;<span class="hljs-type">str</span>) <span class="hljs-punctuation">-&gt;</span> &amp;<span class="hljs-type">str</span> {
+    <span class="hljs-comment">// Skipping logic for brevity. Assume the last word begins at</span>
+    <span class="hljs-comment">// index i and ends at j + 1</span>
+    &amp;text[i..j]
+}
+
+<span class="hljs-keyword">fn</span> <span class="hljs-title function_">main</span>() {
+    <span class="hljs-keyword">let</span> <span class="hljs-variable">text</span> = <span class="hljs-string">&quot;Hello world. How are you ?&quot;</span>;
+    <span class="hljs-keyword">let</span> <span class="hljs-variable">separators</span> = <span class="hljs-string">&quot; .?&quot;</span>;
+    <span class="hljs-keyword">let</span> <span class="hljs-variable">last_word</span> = <span class="hljs-title function_ invoke__">get_last_word</span>(text, separators);
+    <span class="hljs-built_in">assert_eq!</span>(<span class="hljs-string">&quot;you&quot;</span>, last_word);
+}
+</code></pre>
+<p>Abvoe method accepts two string references, a text and string of seperator characters and returns a reference to the last word from the text. However, this will fail to compile with below error,</p>
+<pre>
+  |
+2 | fn get_last_word(text: &str, seperators: &str) -> &str {
+  |                        ----              ----     ^ expected named lifetime parameter
+  |
+  = help: this function's return type contains a borrowed value, but the
+    signature does not say whether it is borrowed from `text` or `seperators`
+    help: consider introducing a named lifetime parameter
+  |
+2 | fn get_last_word<'a>(text: &'a str, seperators: &'a str) -> &'a str {
+  |                 ++++        ++                   ++          ++
+
+</pre>
+<p>Rust compiler is giving us some very helpful hints at what the problem is. Compiler cannot infer how long the reference returned from <code>get_last_word</code> is valid for. Since we're returning a slice of <code>text</code>, the lifetime of reference is tied to that of the <code>text</code> and they need annotated with same lifetimes. Lets try that, with a small change to our main function as well.</p>
+<pre class="highlight"><code class="hljs"><span class="hljs-keyword">fn</span> <span class="hljs-title function_">get_last_word</span>&lt;<span class="hljs-symbol">&#x27;a</span>&gt;(text: &amp;<span class="hljs-symbol">&#x27;a</span> <span class="hljs-type">str</span>, seperators: &amp;<span class="hljs-symbol">&#x27;a</span> <span class="hljs-type">str</span>) <span class="hljs-punctuation">-&gt;</span> &amp;<span class="hljs-symbol">&#x27;a</span> <span class="hljs-type">str</span> {
+    <span class="hljs-comment">// Skipping logic for brevity. Assume the last word begins at</span>
+    <span class="hljs-comment">// index i and ends at j + 1</span>
+    &amp;text[i..j]
+}
+
+<span class="hljs-keyword">fn</span> <span class="hljs-title function_">main</span>() {
+    <span class="hljs-keyword">let</span> <span class="hljs-variable">text</span> = <span class="hljs-string">&quot;Hello world. How are you ?&quot;</span>;
+    <span class="hljs-keyword">let</span> <span class="hljs-variable">last_word</span>;
+    {
+        <span class="hljs-comment">// error[E0597]: `separators` does not live long enough</span>
+        <span class="hljs-keyword">let</span> <span class="hljs-variable">separators</span> = <span class="hljs-type">String</span>::<span class="hljs-title function_ invoke__">from</span>(<span class="hljs-string">&quot; .?&quot;</span>);
+        last_word = <span class="hljs-title function_ invoke__">get_last_word</span>(text, separators);
+        <span class="hljs-comment">// separators cease to exist at the end of this scope</span>
+    }
+
+    <span class="hljs-built_in">println!</span>(<span class="hljs-string">&quot;Last world is {}&quot;</span>, last_word);
+}
+</code></pre>
+<p>Unfortunately, this doesn't compile either. Here, <code>separators</code> don't live as long as <code>text</code> so it clearly has a shorter lifetime. They can't be used to invoke <code>get_last_word</code> because the method requires lifetimes of both arguments to match.</p>
+<p>Since the lifetime of output reference depends only on the lifetime of <code>text</code>, the correct resolution here is to annotate <code>seperators</code> with a lifetime of its own, <code>'b</code>, like this,</p>
+<pre class="highlight"><code class="hljs"><span class="hljs-keyword">fn</span> <span class="hljs-title function_">get_last_word</span>&lt;<span class="hljs-symbol">&#x27;a</span>, <span class="hljs-symbol">&#x27;b</span>&gt;(text: &amp;<span class="hljs-symbol">&#x27;a</span> <span class="hljs-type">str</span>, seperators: &amp;<span class="hljs-symbol">&#x27;b</span> <span class="hljs-type">str</span>) <span class="hljs-punctuation">-&gt;</span> &amp;<span class="hljs-symbol">&#x27;a</span> <span class="hljs-type">str</span> {
+    <span class="hljs-comment">// Skipping logic for brevity. Assume the last word begins at</span>
+    <span class="hljs-comment">// index i and ends at j + 1</span>
+    &amp;text[i..j]
+}
+</code></pre>
+<p>It should be obvious why this works. The <code>separators</code> string could be dropped immediately after the method returns for all we care without violating any memory safety guarantees (no dangling pointers etc). One burning question I had when I started learning lifetimes was that why couldn't the compiler infer it by itself and this clarified why. Compiler could have added those lifetimes insteading of asking us to do it, but that wouldn't have resulted in the behavior we wanted. <strong>Compiler can understand only what you've written, it cannot infer what you intended to happen.</strong> Taking actions on behalf of programmer hence might result in violation of <a href="https://en.wikipedia.org/wiki/Principle_of_least_astonishment">principle of least astonishment</a>.</p>
+<h1 id="lifetimes-and-memory-safety" tabindex="-1">Lifetimes and memory safety</h1>
+<p>Lifetimes help ensure memory safety in more ways than is obvious at first. Consider below snippet that is building on top of our previous examples,</p>
+<pre class="highlight"><code class="hljs"><span class="hljs-comment">// get_last_word(..) definition is same as before.</span>
+<span class="hljs-keyword">fn</span> <span class="hljs-title function_">main</span>() {
+    <span class="hljs-keyword">let</span> <span class="hljs-keyword">mut </span><span class="hljs-variable">text</span> = <span class="hljs-type">String</span>::<span class="hljs-title function_ invoke__">from</span>(<span class="hljs-string">&quot;Rust is memory safe, &quot;</span>);
+    <span class="hljs-keyword">let</span> <span class="hljs-variable">last_word</span> = <span class="hljs-title function_ invoke__">get_last_word</span>(&amp;text, <span class="hljs-string">&quot;,. &quot;</span>);
+    <span class="hljs-comment">// Lets modify the text after the fetching the last word.</span>
+    text.<span class="hljs-title function_ invoke__">push_str</span>(<span class="hljs-string">&quot; but you already knew that.&quot;</span>);
+    <span class="hljs-comment">// Print the last world</span>
+    <span class="hljs-built_in">println!</span>(<span class="hljs-string">&quot;{}&quot;</span>, last_word);
+}
+</code></pre>
+<p>This program will fail to compile with below error,</p>
+<pre>
+error[E0502]: cannot borrow `text` as mutable because it is also borrowed as immutable
+  --> src/main.rs:10:5
+   |
+9  |     let last_word = get_last_word(&text, ",. ");
+   |                                   ----- immutable borrow occurs here
+10 |     text.push_str(" but you already knew that.");
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+11 |     println!("{}", last_word);
+   |                    --------- immutable borrow later used here
+
+</pre>
+<p>The error must be obvious to those familiar with Rust's ownership rules. <code>push_str</code> is mutably borrowing <code>text</code> while <code>last_word</code> has already immutably borrowed it.  According to Rust's ownership rules, you can either have N immutable references or a single mutable reference to an object, but not both. That is the text book explanation at least. So what do we do ?</p>
+<p>Over time, I've begun to see these errors not as borrow checker giving me a fit, but as potential memory corruptions that are inherent in the program. Lets consider for a moment what we're trying to do here. We've obtained a reference (<code>last_world</code>) to a slice of a string and then we're mutating the original string. The validity of the <code>last_word</code> after depends on the sort of changes made to the source string while it was mutably borrowed. What if we hard cleared the string, truncated it, or removed the last word just for the heck of it ? Well, <code>last_word</code> would no longer be a valid reference and using it would be a bad idea. Here's the kicker, <strong>the compiler cannot infer which mutations to <code>text</code> will render your reference invalid, so it makes a blanket assumption that any mutation will, and refuse to compile.</strong> This might sound like overly restrictive at first, and it is somewhat so, but it is essential to enforcing Rust's memory safety guarantees.</p>
+<p>Another way to think of it is this :- when we calculated <code>last_word</code>, <code>text</code> had an internal state <code>x</code>. Any mutable borrow, like <code>push_str</code> could potentially change that state to, say <code>y</code>. Is it safe to assume a reference that was created for state <code>x</code> is valid for <code>y</code> ? Rust says no.</p>
+<p>How do we solve it ? It really depends on what you're trying to do. In the above example, I could just move the <code>println!</code> before the <code>push_str</code> call and it would compile successfully. If I wanted <code>last_word</code> after <code>push_str</code> call, I could clone it as well so it isn't tied to <code>text</code> anymore.</p>
+<h1 id="lifetime-elision" tabindex="-1">Lifetime Elision</h1>
+<p>To make programmers' life easier, Rust development team came up with a certain set of rules where the compiler would attempt to infer lifetimes automatically instead of forcing the programmer to declare them. There are four of them, and they are well documented with loads of examples in <a href="https://doc.rust-lang.org/nomicon/lifetime-elision.html">Rust docs</a> that it's not worth repeating here.</p>
+<h1 id="when-elision-goes-wrong" tabindex="-1">When Elision goes wrong</h1>
+<p>The point I want to emphasize however is that elision is simply a <em>convenience mechanism</em> that most of the time, does what the programmer would have done themselves. When it doesn't work, we'd be in for a surprise and a wild debugging ride. I'll try and demonstrate this by implementing a simple stack,</p>
+<pre class="highlight"><code class="hljs"><span class="hljs-keyword">struct</span> <span class="hljs-title class_">Stack</span>&lt;<span class="hljs-symbol">&#x27;a</span>&gt; {
+    vec: <span class="hljs-type">Vec</span>&lt;&amp;<span class="hljs-symbol">&#x27;a</span> <span class="hljs-type">str</span>&gt;
+}
+
+<span class="hljs-keyword">impl</span>&lt;<span class="hljs-symbol">&#x27;a</span>&gt; Stack&lt;<span class="hljs-symbol">&#x27;a</span>&gt; {
+
+    <span class="hljs-keyword">fn</span> <span class="hljs-title function_">new</span>() <span class="hljs-punctuation">-&gt;</span> <span class="hljs-keyword">Self</span> {
+        Stack {
+            vec: <span class="hljs-built_in">vec!</span>[]
+        }
+    }
+
+    <span class="hljs-keyword">fn</span> <span class="hljs-title function_">push</span>(&amp;<span class="hljs-keyword">mut</span> <span class="hljs-keyword">self</span>, top: &amp;<span class="hljs-symbol">&#x27;a</span> <span class="hljs-type">str</span>) {
+        <span class="hljs-keyword">self</span>.vec.<span class="hljs-title function_ invoke__">push</span>(top);
+    }
+
+    <span class="hljs-keyword">fn</span> <span class="hljs-title function_">pop</span>(&amp;<span class="hljs-keyword">mut</span> <span class="hljs-keyword">self</span>) <span class="hljs-punctuation">-&gt;</span> <span class="hljs-type">Option</span>&lt;&amp;<span class="hljs-type">str</span>&gt; {
+        <span class="hljs-keyword">self</span>.vec.<span class="hljs-title function_ invoke__">pop</span>()
+    }
+}
+
+<span class="hljs-keyword">fn</span> <span class="hljs-title function_">main</span>() {
+    <span class="hljs-keyword">let</span> <span class="hljs-keyword">mut </span><span class="hljs-variable">stack</span> = Stack::<span class="hljs-title function_ invoke__">new</span>();
+    stack.<span class="hljs-title function_ invoke__">push</span>(<span class="hljs-string">&quot;hello&quot;</span>);
+    stack.<span class="hljs-title function_ invoke__">push</span>(<span class="hljs-string">&quot;world&quot;</span>);
+
+    <span class="hljs-keyword">let</span> <span class="hljs-variable">world</span> = stack.<span class="hljs-title function_ invoke__">pop</span>();
+    <span class="hljs-keyword">let</span> <span class="hljs-variable">hello</span> = stack.<span class="hljs-title function_ invoke__">pop</span>();
+
+    <span class="hljs-built_in">println!</span>(<span class="hljs-string">&quot;{} {}&quot;</span>, hello.<span class="hljs-title function_ invoke__">unwrap</span>(), world.<span class="hljs-title function_ invoke__">unwrap</span>());
+}
+</code></pre>
+<p>There's some new use of lifetimes here, especially in structs, that we haven't discussed before. Just know that they serve the same purpose as they do in functions, if not more, i.e tie the lifetime of those references to that of struct objects.</p>
+<p>Above program will however fail to compile with below error,</p>
+<pre>
+error[E0499]: cannot borrow `stack` as mutable more than once at a time
+  --> src/main.rs:28:17
+   |
+27 |     let hello = stack.pop();
+   |                 ----------- first mutable borrow occurs here
+28 |     let world = stack.pop();
+   |                 ^^^^^^^^^^^ second mutable borrow occurs here
+29 |
+30 |     println!("{} {}", hello.unwrap(), world.unwrap());
+   |                       ----- first borrow later used here
+
+</pre>
+<p>Why is <code>stack</code> being borrowed more than once at the same time ? We are only making two <code>pop</code> calls back to back after all. The culprit, though not obvious at first, is lifetime elision, specifically in the <code>pop</code> method, because it desugars to,</p>
+<pre class="highlight"><code class="hljs">    <span class="hljs-keyword">fn</span> <span class="hljs-title function_">pop</span>(&amp;<span class="hljs-symbol">&#x27;b</span> <span class="hljs-keyword">mut</span> <span class="hljs-keyword">self</span>) <span class="hljs-punctuation">-&gt;</span> <span class="hljs-type">Option</span>&lt;&amp;<span class="hljs-symbol">&#x27;b</span> <span class="hljs-type">str</span>&gt; {
+        <span class="hljs-keyword">self</span>.vec.<span class="hljs-title function_ invoke__">pop</span>()
+    }
+</code></pre>
+<p>Lifetime elision added a unique lifetime to references in that method that implies the output reference is now tied to the lifetime of mutable borrow. We're keeping the mutable borrow alive by keeping the popped reference alive (i.e printing it later in the program). The second pop hence cannot mutate the stack again because that could invalidate the first popped reference that is being used later in the program, and that could violate memory safety guarantees.</p>
+<p>While it may seem like we've hit a wall at first, the solution here is rather simple. All the references in the stack have a lifetime of <code>'a</code> but elision decided that of popped reference should be <code>'b</code> because it didn't know any better. The program can be fixed by changing the output of <code>pop</code> to <code>Option&lt;&amp;'a str&gt;</code>. This tells the compiler that popped reference is valid as long as the <code>Stack</code> struct is, irrespective of any future mutations.</p>
+<p>Its well worth noting that Rust refused to compile our program with incorrect lifetimes, unlike other languages that might have compiled it and failed at runtime in similar situatations. The benefits of elision always outweighs its cons, but this &quot;limitation&quot; helped me gain better understanding and mental model of Rust lifetimes in general.</p>
+<h1 id="conclusion" tabindex="-1">Conclusion</h1>
+<p>Rust programs and compiler errors makes a lot more sense if we start to think about the memory safety of our code. Lifetime and elisions are merely tools and mechanisms that are used to express our intentions to the compiler so that it can determine how safe our programs actually are. However, this may not always go according to the plan, as we've found out. Even so, lifetime elision has made Rust a better language by avoiding a lot of biolerplate code and making some simple programs easy for beginners.</p>
+<p>Credit: This article is just rubber ducking one of the quirks related to lifetimes that I read in another fantastic blog, <a href="https://github.com/pretzelhammer/rust-blog/blob/master/posts/common-rust-lifetime-misconceptions.md">Common Rust Lifetime Misconceptions</a>. Every Rust programmer should read it at least once before they get into serious Rust development.</p>
+
+</div>
+
+
+
+<div class="pagination">
+  
+  
+  
+  
+    <a href="/_posts/2023-06-10-what-is-golang-context/" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/_posts/2022-12-04-programmers-toolbox/" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+    <footer style="clear: both">
+  <span>
+    &copy; <time datetime="Sun Apr 23 2023 00:00:00 GMT+0000 (Coordinated Universal Time)">2023</time> Nilesh. Made with 11ty.
+  </span>
+</footer>
+
+  </body>
+</html>
