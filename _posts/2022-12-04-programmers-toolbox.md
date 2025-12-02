@@ -22,10 +22,9 @@ A collection of opinionated howtos for computer programmers.
 ## Blogs
 * [pretzelhammer's Rust blog](https://github.com/pretzelhammer/rust-blog)
 * [AWS: Implement resource counters with Amazon DynamoDB](https://aws.amazon.com/blogs/database/implement-resource-counters-with-amazon-dynamodb/)
+* [Prefer duplication over wrong abstraction](https://sandimetz.com/blog/2016/1/20/the-wrong-abstraction)
 
 ## Webapps
 * [Escalidraw - quick architecture diagrams](https://excalidraw.com/)
 * [Phind - The AI search engine for developers.](https://www.phind.com)
 
-## Coding problems
-* [200+ Algo & data structure problems & solutions](https://platformalgorithmsdatastructures.kingofinterviews.com/)
