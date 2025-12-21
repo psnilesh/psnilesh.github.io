@@ -23,6 +23,7 @@ A collection of opinionated howtos for computer programmers.
 * [pretzelhammer's Rust blog](https://github.com/pretzelhammer/rust-blog)
 * [AWS: Implement resource counters with Amazon DynamoDB](https://aws.amazon.com/blogs/database/implement-resource-counters-with-amazon-dynamodb/)
 * [Prefer duplication over wrong abstraction](https://sandimetz.com/blog/2016/1/20/the-wrong-abstraction)
+* [SAML vs OAuth vs OIDC](https://commandline.ninja/saml-oauth-oidc/)
 
 ## Webapps
 * [Escalidraw - quick architecture diagrams](https://excalidraw.com/)
