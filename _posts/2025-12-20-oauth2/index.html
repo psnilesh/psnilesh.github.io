@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>OAuth2 Auth workflow - Almanack</title>
+  <meta name="description" content="Personal blog">
+
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <script src="https://unpkg.com/kotlin-playground@1" data-selector="code.kotlin-playground"></script>
+</head>
+
+  <body>
+    <nav class="nav">
+  <div class="nav-container">
+    <a href="/">
+      <img src="/assets/logo.png" height="40px"/>
+    </a>
+    <ul>
+      <li><a href="/">Posts</a></li>
+      <li><a href="/tags">Tags</a></li>
+      <li><a href="/books">Books</a></li>
+      <li><a href="/about">About</a></li>
+    </ul>
+  </div>
+</nav>
+
+    <main>
+      
+<div class="post">
+  <div class="post-info">
+    
+  </div>
+
+  <h1 class="post-title">OAuth2 Auth workflow</h1>
+  <div class="post-line"></div>
+  <p>OAuth2 is the industry standard for granting third-praty applications limited acccess to your data on another service (like Google).  <!--more-->. Check out <a href="https://commandline.ninja/saml-oauth-oidc/">this amazing blog post</a> that explains the differences between SAML, OAuth and OpenID.</p>
+<p>Below sequence diagram shows high level interactions involved when using oauth to grant a 3rd party application limited access to your Google profile,</p>
+<p><img src="/assets/images/oauth2.png" alt="Sequence diagram"></p>
+<details>
+<p><summary> View source </summary>
+<pre>
+@startuml
+autonumber
+skinparam shadowing false</p>
+<p>actor User
+participant &quot;App (Client)&quot; as App
+participant &quot;Google Auth Server&quot; as Google
+participant &quot;Resource Server&quot; as API</p>
+<p>User -&gt; App: Click &quot;Login with Google&quot;
+App -&gt; Google: Redirect to Authorization URL\n(client_id, scope, redirect_uri)
+Google -&gt; User: Prompt for Credentials &amp; Consent
+User -&gt; Google: Authenticate &amp; Authorize
+Google -&gt; App: Redirect to redirect_uri\n(Authorization Code)
+App -&gt; Google: POST /token\n(code, client_id, client_secret)
+Google -&gt; App: Return Access Token &amp; ID Token
+App -&gt; API: Request User Info\n(Authorization: Bearer token)
+API -&gt; App: User Profile Data
+App -&gt; User: Authenticated Session Established
+@enduml
+</pre></p>
+</details>
+</div>
+
+
+
+<div class="pagination">
+  
+  
+  
+  
+  
+    <a href="/_posts/2023-07-22-effective-golang/" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+    <footer style="clear: both">
+  <span>
+    &copy; <time datetime="Sat Dec 20 2025 00:00:00 GMT+0000 (Coordinated Universal Time)">2025</time> Nilesh. Made with 11ty.
+  </span>
+</footer>
+
+  </body>
+</html>
