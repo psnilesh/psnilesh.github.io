@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Ubuntu virtual machines for those in a hurry - Almanack</title>
+  <meta name="description" content="Personal blog">
+
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <script src="https://unpkg.com/kotlin-playground@1" data-selector="code.kotlin-playground"></script>
+</head>
+
+  <body>
+    <nav class="nav">
+  <div class="nav-container">
+    <a href="/">
+      <img src="/assets/logo.png" height="40px"/>
+    </a>
+    <ul>
+      <li><a href="/">Posts</a></li>
+      <li><a href="/tags">Tags</a></li>
+      <li><a href="/books">Books</a></li>
+      <li><a href="/about">About</a></li>
+    </ul>
+  </div>
+</nav>
+
+    <main>
+      
+<div class="post">
+  <div class="post-info">
+    
+  </div>
+
+  <h1 class="post-title">Ubuntu virtual machines for those in a hurry</h1>
+  <div class="post-line"></div>
+  <p>A couple of weeks ago, I decided to setup a virtual machine in my Linux Mint machine to run some untrusted code. I was quite familiar with Virtualbox but I preferred a solution that didn't take me away from my terminal. I had heard about Qemu a lot so decided to give it a try.<!--more--></p>
+<p>I launched a Qemu VM with latest <a href="https://www.alpinelinux.org/downloads/">Alpine ISO</a> and started going through the installation process. Unfortunately, it failed half-way through due to lack of network connectivity inside the guest OS. I had misconfigured the network bridge. I tried a couple of things to get it to work but eventually ran out of patience. Installation process itself was also longer than I liked for a quick VM spinup so I decided to explore other options. I then landed on <a href="https://cloud-images.ubuntu.com/">Cloud images</a> that don't need installation to get started with, just like instances launched in any cloud provider. However, it still expected to configure <em>cloud-init</em>, which once again, I was too impatient for. While searching for ways to simplify or avoid having to specify <em>cloud-init</em> at all, I came across this nifty tool by Ubuntu called <code>uvt-kvm</code> that fit the bill perfectly.</p>
+<p><code>uvt-kvm</code> is a virtualisation front-end for libvrt and kvm that works on Ubuntu and its derivatives, which was lucky for me as a Mint user. It is built on top of cloud images so it can launch a VM without going through guess OS installation process. It also ships with defaults that don't require user to configure <em>cloud-init</em>, or even know it's a thing. I tried it, and spinning up a VM has never felt easier,</p>
+<p>First, install <code>uvtool</code></p>
+<pre class="highlight"><code class="hljs">$ <span class="hljs-built_in">sudo</span> apt install -y uvtool
+</code></pre>
+<p>Now download you preferred cloud image to your machine,</p>
+<pre class="highlight"><code class="hljs">$ uvt-simplestreams-libvirt <span class="hljs-built_in">sync</span> release=noble <span class="hljs-built_in">arch</span>=amd64
+</code></pre>
+<p><code>noble</code> is the release name I chose. For full list of Ubuntu release names, refer <a href="https://documentation.ubuntu.com/project/release-team/list-of-releases/">their documentation</a>.</p>
+<p>Then create the VM using <code>uvt-kvm</code>,</p>
+<pre class="highlight"><code class="hljs">$ uvt-kvm create my-test-vm release=noble
+$ uvt-kvm <span class="hljs-built_in">wait</span> my-test-vm <span class="hljs-comment"># Wait for the VM to create</span>
+</code></pre>
+<p>Now you can ssh into it by running</p>
+<pre class="highlight"><code class="hljs">$ uvt-kvm ssh my-test-vm
+</code></pre>
+<p>In few commands, we've setup a fully isolated Ubuntu VM that you can use for quick experiments. The tool sets it up with internet connectivity by default, just like I wanted. Further, you can connect VSCode or other editors for remote development by creating a regular SSH connection to VM's IP returned by command <code>uvt-kvm ip my-test-vm</code>.</p>
+<p>Don't forget to delete the VM when you no longer need it,</p>
+<pre class="highlight"><code class="hljs">$ uvt-kvm list <span class="hljs-comment"># To list all running VMs</span>
+$ uvt-kvm destroy my-test-vm
+</code></pre>
+<p>You can configure cpu, memory and disk storage made available to the VM easily through cli args. There are examples in the links below.</p>
+<p>It needs to be noted that this tool is only a wrapper over existing virtualization technologies, and a really convenient one at that. Currently, it is available only on Ubuntu (or its derivates) and can only launch Ubuntu virtual machines. I'm generally ok with any Debian system so this was fine with me.</p>
+<p>To whoever decided to build this tool - Thank you!</p>
+<h3 id="references" tabindex="-1">References</h3>
+<ol>
+<li><a href="https://people.canonical.com/~mwh/serverguidoke/build/serverguide/C/cloud-images-and-uvtool.html.en">Cloud images and uvtool</a>.</li>
+<li><a href="https://manpages.ubuntu.com/manpages/focal/man1/uvt-kvm.1.html">uvt-kvm man page</a></li>
+</ol>
+
+</div>
+
+
+
+<div class="pagination">
+  
+  
+  
+  
+  
+    <a href="/_posts/2025-12-20-oauth2/" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+    <footer style="clear: both">
+  <span>
+    &copy; <time datetime="Fri Jan 30 2026 00:00:00 GMT+0000 (Coordinated Universal Time)">2026</time> Nilesh. Made with 11ty.
+  </span>
+</footer>
+
+  </body>
+</html>
