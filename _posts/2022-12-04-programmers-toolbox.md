@@ -29,3 +29,5 @@ A collection of opinionated howtos for computer programmers.
 * [Escalidraw - quick architecture diagrams](https://excalidraw.com/)
 * [Phind - The AI search engine for developers.](https://www.phind.com)
 
+## AI
+* [Tropes.fyi](https://tropes.fyi/tropes-md)
