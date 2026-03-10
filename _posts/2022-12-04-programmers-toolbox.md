@@ -31,3 +31,4 @@ A collection of opinionated howtos for computer programmers.
 
 ## AI
 * [Tropes.fyi](https://tropes.fyi/tropes-md)
+* [Google: Goodput metric as a measure of ML productivity](https://cloud.google.com/blog/products/ai-machine-learning/goodput-metric-as-measure-of-ml-productivity)
