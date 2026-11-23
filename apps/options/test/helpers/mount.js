@@ -197,8 +197,12 @@ export async function mountApp({ hash = '' } = {}) {
   };
 }
 
-/** Every readout the app writes to, for sweep assertions. */
+/**
+ * Readouts that must always carry a value. Used both for the "nothing is
+ * blank" check and the NaN sweep.
+ */
 export const READOUTS = [
+  'price-note',
   'out-model-price',
   'out-model-total',
   'out-intrinsic',
@@ -237,3 +241,9 @@ export const READOUTS = [
   'exitIvOut',
   'exitIvDelta',
 ];
+
+/**
+ * Readouts that legitimately show a dash when there is nothing to report,
+ * so they are swept for junk but not required to be populated.
+ */
+export const OPTIONAL_READOUTS = ['out-unrealised'];

@@ -16,7 +16,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { mountApp, READOUTS } from './helpers/mount.js';
+import { mountApp, READOUTS, OPTIONAL_READOUTS } from './helpers/mount.js';
 import { evaluate, expiryBreakeven } from '../js/bs.js';
 import { isoDateInDays, daysUntil } from '../js/dates.js';
 
@@ -325,31 +325,31 @@ test('Copy link reports failure without throwing', async () => {
  * Premium handling
  * ------------------------------------------------------------------ */
 
-test('an empty premium falls back to the model price and says so', async () => {
+test('an empty premium falls back to the option price and says so', async () => {
   await withApp({}, (app) => {
     assert.equal(app.text('out-premium'), app.text('out-model-price'));
-    assert.match(app.text('out-premium-note'), /using the model price/i);
+    assert.match(app.text('out-premium-note'), /using the option price/i);
   });
 });
 
-test('premium above and below model value is described correctly', async () => {
+test('a fill above and below the current price is described correctly', async () => {
   await withApp({}, (app) => {
     app.set('premium', 5);
-    assert.match(app.text('out-premium-note'), /above model value/i);
+    assert.match(app.text('out-premium-note'), /more than it is worth/i);
     app.set('premium', 1);
-    assert.match(app.text('out-premium-note'), /below model value/i);
+    assert.match(app.text('out-premium-note'), /less than it is worth/i);
   });
 });
 
-test('a premium matching the model reads as matching, not "$0.00 above"', async () => {
-  // REGRESSION: after Solve for IV the two agree to many decimals but not
-  // bit-for-bit, which rendered "You paid $0.00 above model value."
+test('a fill matching the price reads as matching, not "$0.00 above"', async () => {
+  // REGRESSION: the two agree to many decimals but not bit-for-bit, which
+  // rendered "You paid $0.00 above model value."
   await withApp({}, (app) => {
     const model = evaluate({
       S: 100, K: 100, T: 30 / 365, vol: 0.3, type: 'call',
     }).price;
     app.set('premium', model);
-    assert.equal(app.text('out-premium-note'), 'Matches the model price.');
+    assert.equal(app.text('out-premium-note'), 'Matches the current option price.');
   });
 });
 
@@ -357,21 +357,94 @@ test('a premium matching the model reads as matching, not "$0.00 above"', async 
  * Solve for IV
  * ------------------------------------------------------------------ */
 
-test('Solve for IV fills IV and premium, and round-trips', async () => {
+test('the option price is derived from IV on load', async () => {
   await withApp({}, (app) => {
-    app.$('marketPrice').value = '4.80';
-    app.click('btn-solve-iv');
-
-    const iv = Number(app.$('iv').value);
-    assert.ok(iv > 1 && iv < 200, `implausible IV: ${iv}`);
-    assert.equal(app.$('premium').value, '4.80');
-    assert.equal(app.text('out-model-price'), '$4.80', 'round-trips to the quote');
-    assert.match(app.text('solve-iv-note'), /implies/i);
+    const expected = evaluate({
+      S: 100, K: 100, T: 30 / 365, vol: 0.3, type: 'call',
+    }).price;
+    assert.equal(app.$('optionPrice').value, expected.toFixed(2));
+    assert.match(app.text('price-note'), /derived from the volatility/i);
   });
 });
 
-test('Solve for IV refuses a price with no time value', async () => {
-  // A deep in-the-money option at parity: vega is ~0 so IV is unrecoverable.
+test('typing a price solves for the implied volatility', async () => {
+  await withApp({}, (app) => {
+    app.set('optionPrice', 4.8);
+
+    const iv = Number(app.$('iv').value);
+    assert.ok(iv > 1 && iv < 200, `implausible IV: ${iv}`);
+    // The solved IV must reproduce the price that was typed.
+    const back = evaluate({
+      S: 100, K: 100, T: 30 / 365, vol: iv / 100, type: 'call',
+    }).price;
+    assert.ok(Math.abs(back - 4.8) < 0.005, `round-trip: ${back} vs 4.80`);
+    assert.match(app.text('price-note'), /implies .* volatility/i);
+    assert.equal(app.text('out-model-price'), '$4.80');
+  });
+});
+
+test('typing an IV updates the price', async () => {
+  await withApp({}, (app) => {
+    app.set('iv', 55);
+    const expected = evaluate({
+      S: 100, K: 100, T: 30 / 365, vol: 0.55, type: 'call',
+    }).price;
+    assert.equal(app.$('optionPrice').value, expected.toFixed(2));
+  });
+});
+
+test('price and IV stay consistent through edits from either side', async () => {
+  await withApp({}, (app) => {
+    for (const price of [1.25, 8.4, 0.35, 15]) {
+      app.set('optionPrice', price);
+      const iv = Number(app.$('iv').value);
+      const back = evaluate({
+        S: 100, K: 100, T: 30 / 365, vol: iv / 100, type: 'call',
+      }).price;
+      assert.ok(Math.abs(back - price) < 0.006, `price ${price} -> IV ${iv} -> ${back}`);
+    }
+    for (const iv of [12, 30, 85, 150]) {
+      app.set('iv', iv);
+      const expected = evaluate({
+        S: 100, K: 100, T: 30 / 365, vol: iv / 100, type: 'call',
+      }).price;
+      assert.equal(app.$('optionPrice').value, expected.toFixed(2), `IV ${iv}`);
+    }
+  });
+});
+
+test('editing the stock price moves the option price and leaves IV alone', async () => {
+  // Volatility is a property of the market, not of spot, so a change in the
+  // underlying must not silently rewrite the IV the user entered.
+  await withApp({}, (app) => {
+    app.set('iv', 40);
+    const ivBefore = app.$('iv').value;
+    const priceBefore = Number(app.$('optionPrice').value);
+
+    app.set('spot', 115);
+
+    assert.equal(app.$('iv').value, ivBefore, 'IV held');
+    assert.ok(
+      Number(app.$('optionPrice').value) > priceBefore,
+      'call price rose with spot'
+    );
+  });
+});
+
+test('a price no volatility can produce is reported, leaving IV untouched', async () => {
+  await withApp({}, (app) => {
+    app.set('iv', 30);
+    const ivBefore = app.$('iv').value;
+    // Far above any achievable value for a 30-day at-the-money call.
+    app.set('optionPrice', 500);
+    assert.match(app.text('price-note'), /no volatility produces that price/i);
+    assert.equal(app.$('iv').value, ivBefore, 'IV left alone');
+    assert.equal(app.$('oc-errors').hidden, true);
+  });
+});
+
+test('a price at parity is reported rather than solved to zero volatility', async () => {
+  // Deep in-the-money and near expiry: vega is ~0, so IV is unrecoverable.
   await withApp({}, (app) => {
     app.set('type', 'put');
     app.set('spot', 80);
@@ -380,17 +453,93 @@ test('Solve for IV refuses a price with no time value', async () => {
     const parity = evaluate({
       S: 80, K: 100, T: 7 / 365, vol: 0.12, type: 'put',
     }).price;
-    app.$('marketPrice').value = String(parity.toFixed(4));
-    app.click('btn-solve-iv');
-    assert.match(app.text('solve-iv-note'), /cannot determine/i);
+    const ivBefore = app.$('iv').value;
+    app.set('optionPrice', parity.toFixed(4));
+    assert.match(app.text('price-note'), /no volatility produces that price/i);
+    assert.equal(app.$('iv').value, ivBefore);
   });
 });
 
-test('Solve for IV asks for a price when the field is empty', async () => {
+test('an expired option reports that IV cannot be inferred', async () => {
   await withApp({}, (app) => {
-    app.$('marketPrice').value = '';
-    app.click('btn-solve-iv');
-    assert.match(app.text('solve-iv-note'), /enter the option price/i);
+    app.set('dte', 0);
+    app.set('optionPrice', 5);
+    assert.match(app.text('price-note'), /already expired/i);
+  });
+});
+
+test('the price is not stored in the URL, so a link cannot contradict itself', async () => {
+  // Price and IV are redundant, so storing both would let a link carry a
+  // contradictory pair. Only the volatility is persisted.
+  //
+  // Asserted against an allowlist of parameter keys rather than by looking
+  // for one specific name: a derived field with a null key leaks as
+  // "null=4.80", which a check for "o=" would have sailed straight past.
+  // Mutation testing caught exactly that.
+  const ALLOWED = new Set([
+    's', 'd', 't', 'n', 'S', 'K', 'D', 'e', 'v', 'p', 'r', 'q', 'x', 'w', 'a', 'm',
+  ]);
+  await withApp({}, (app) => {
+    app.set('optionPrice', 4.8);
+    const params = new URLSearchParams(app.window.location.hash.slice(1));
+    const keys = [...params.keys()];
+    for (const key of keys) {
+      assert.ok(ALLOWED.has(key), `unexpected parameter "${key}=${params.get(key)}" in the hash`);
+    }
+    assert.ok(keys.includes('v'), 'volatility is the stored form');
+    assert.ok(!keys.includes('null') && !keys.includes('undefined'));
+  });
+});
+
+/** Parse a signed money string like "+$100.02 (+41.2%)" to a number. */
+const parsePnl = (s) => Number(s.split(' ')[0].replace(/[$,+]/g, ''));
+
+test('open P&L appears only when the fill differs from the current price', async () => {
+  await withApp({}, (app) => {
+    assert.equal(app.text('out-unrealised'), '--', 'nothing to report by default');
+
+    app.set('iv', 30);
+    // The displayed price is rounded to cents, so the exact model value is
+    // what the P&L is computed against. Derive the expectation from it
+    // rather than from the rounded field.
+    const model = evaluate({
+      S: 100, K: 100, T: 30 / 365, vol: 0.3, type: 'call',
+    }).price;
+
+    const paidLess = Number((model - 1).toFixed(2));
+    app.set('premium', paidLess);
+    assert.ok(
+      Math.abs(parsePnl(app.text('out-unrealised')) - (model - paidLess) * 100) < 0.02,
+      `open profit mismatch: ${app.text('out-unrealised')}`
+    );
+    assert.match(app.text('out-unrealised'), /^\+/, 'shown as a gain');
+    assert.match(app.text('out-premium-note'), /less than it is worth/i);
+
+    const paidMore = Number((model + 2).toFixed(2));
+    app.set('premium', paidMore);
+    assert.ok(
+      Math.abs(parsePnl(app.text('out-unrealised')) + (paidMore - model) * 100) < 0.02,
+      `open loss mismatch: ${app.text('out-unrealised')}`
+    );
+    assert.match(app.text('out-unrealised'), /^-/, 'shown as a loss');
+    assert.match(app.text('out-premium-note'), /more than it is worth/i);
+  });
+});
+
+test('open P&L flips sign for a short position', async () => {
+  await withApp({}, (app) => {
+    const model = evaluate({
+      S: 100, K: 100, T: 30 / 365, vol: 0.3, type: 'call',
+    }).price;
+    app.set('side', 'short');
+    app.set('premium', Number((model - 1).toFixed(2)));
+    // Sold it for less than it is now worth, so buying it back costs more:
+    // a loss, where the same numbers long would be a profit.
+    assert.match(app.text('out-unrealised'), /^-/, 'short position shows a loss');
+    assert.ok(
+      Math.abs(parsePnl(app.text('out-unrealised')) + 100) < 0.05,
+      `expected about -$100, got ${app.text('out-unrealised')}`
+    );
   });
 });
 
@@ -671,7 +820,7 @@ test('awkward positions never render NaN, undefined or a broken chart', async ()
 
     for (const [label, apply] of cases) {
       apply();
-      for (const id of READOUTS) {
+      for (const id of [...READOUTS, ...OPTIONAL_READOUTS]) {
         const value = app.text(id);
         assert.ok(!BAD.test(value), `${label}: #${id} = "${value}"`);
       }

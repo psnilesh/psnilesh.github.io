@@ -84,33 +84,26 @@ tech: Black-Scholes, Chart.js
           <p class="oc-hint">Edit either; the other follows.</p>
         </div>
 
-        <div class="oc-field oc-span">
+        <!-- Price and IV are the same information in two units, related by
+             the pricing formula, so either one determines the other. Both are
+             first-class inputs and each solves for the other. -->
+        <div class="oc-field">
+          <label for="optionPrice">Option price, per share</label>
+          <input type="number" id="optionPrice" step="0.01" min="0">
+          <p class="oc-hint" id="price-note"></p>
+        </div>
+        <div class="oc-field">
           <label for="iv">Implied volatility %</label>
           <input type="number" id="iv" value="30" step="0.5" min="0.1">
+          <p class="oc-hint">Edit either; the other follows.</p>
         </div>
 
         <div class="oc-field oc-span">
-          <label for="premium">Premium you paid, per share (optional)</label>
-          <input type="number" id="premium" placeholder="defaults to model price" step="0.01" min="0">
+          <label for="premium">Premium you paid, if different</label>
+          <input type="number" id="premium" placeholder="defaults to the option price" step="0.01" min="0">
           <p class="oc-hint" id="out-premium-note"></p>
         </div>
       </div>
-
-      <details class="oc-advanced">
-        <summary>Don't know the IV?</summary>
-        <div class="oc-inline" style="margin-top:0.75rem;">
-          <div class="oc-field">
-            <label for="marketPrice">Quoted option price</label>
-            <input type="number" id="marketPrice" step="0.01" min="0" placeholder="3.45">
-          </div>
-          <button type="button" id="btn-solve-iv">Solve for IV</button>
-        </div>
-        <p class="oc-hint" id="solve-iv-note">
-          Enter what your broker is quoting and this works backwards to the
-          implied volatility, which is the only way to tell whether an option is
-          expensive.
-        </p>
-      </details>
 
       <details class="oc-advanced">
         <summary>Advanced</summary>
@@ -136,7 +129,7 @@ tech: Black-Scholes, Chart.js
 
       <div class="oc-headline">
         <div class="oc-headline-item">
-          <span class="oc-label">Model value</span>
+          <span class="oc-label">Option price</span>
           <span class="oc-big" id="out-model-price">--</span>
           <span class="oc-sub">per share</span>
         </div>
@@ -153,6 +146,10 @@ tech: Black-Scholes, Chart.js
       </div>
 
       <div class="oc-rows">
+        <div class="oc-row">
+          <span class="oc-row-label">Open profit / loss vs your cost</span>
+          <span class="oc-value" id="out-unrealised">--</span>
+        </div>
         <div class="oc-row">
           <span class="oc-row-label">Status</span>
           <span class="oc-value" id="out-moneyness">--</span>
