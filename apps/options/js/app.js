@@ -20,6 +20,13 @@ import {
   eventScenario,
 } from './bs.js';
 import { createPayoffChart, COLORS } from './chart.js';
+import {
+  daysUntil,
+  isoDateInDays,
+  describeDate,
+  isWeekend,
+  parseIsoDate,
+} from './dates.js';
 
 const SHARES_PER_CONTRACT = 100;
 const CHART_POINTS = 161;
@@ -77,7 +84,19 @@ const FIELDS = [
   { id: 'qty', key: 'n', kind: 'number', fallback: 1 },
   { id: 'spot', key: 'S', kind: 'number', fallback: 100 },
   { id: 'strike', key: 'K', kind: 'number', fallback: 100 },
+  // Expiry is expressed two ways and kept in sync. The date is the honest
+  // identity of the contract; the day count is what the model needs and
+  // what is convenient for "what if I held 45 days". Both go into the hash:
+  // `D` (date) wins on restore, because a shared link should still mean the
+  // same option a week later, while `e` keeps older links working.
+  { id: 'expiryDate', key: 'D', kind: 'text', fallback: '' },
   { id: 'dte', key: 'e', kind: 'number', fallback: 30 },
+  // Option price and IV are the same information in different units: the
+  // pricing formula maps one to the other and is invertible, because vega
+  // is strictly positive. Both are inputs and each derives the other.
+  // Only `v` goes in the hash -- storing the price too would let a link
+  // carry a contradictory pair.
+  { id: 'optionPrice', key: null, kind: 'number', fallback: null },
   { id: 'iv', key: 'v', kind: 'number', fallback: 30 },
   { id: 'premium', key: 'p', kind: 'number', fallback: null },
   { id: 'rate', key: 'r', kind: 'number', fallback: 0 },
@@ -119,6 +138,7 @@ function readFields() {
 function writeHash(fields) {
   const params = new URLSearchParams();
   for (const f of FIELDS) {
+    if (f.key == null) continue; // derived, not stored
     const v = fields[f.id];
     if (v == null || v === '' || Number.isNaN(v)) continue;
     params.set(f.key, String(v));
@@ -132,7 +152,7 @@ function restoreFromHash() {
   if (!location.hash || location.hash.length < 2) return;
   const params = new URLSearchParams(location.hash.slice(1));
   for (const f of FIELDS) {
-    if (!params.has(f.key)) continue;
+    if (f.key == null || !params.has(f.key)) continue;
     const value = params.get(f.key);
     if (f.kind === 'radio') {
       const match = radioGroup(f.id).find((n) => n.value === value);
@@ -142,6 +162,135 @@ function restoreFromHash() {
     const node = $(f.id);
     if (node) node.value = value;
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * Expiry: date and day-count kept in sync
+ * ------------------------------------------------------------------ */
+
+// Which control the user touched last, so reconciliation knows which value
+// is authoritative. Tracked rather than inferred inside refresh(), so the
+// result does not depend on the order listeners happen to fire in.
+let expirySource = 'days';
+
+export function setExpirySource(source) {
+  expirySource = source;
+}
+
+/**
+ * Make the date field and the day-count field agree, writing whichever one
+ * the user did not just edit. Called before the model reads either.
+ *
+ * Returns the day count the model should use.
+ */
+function reconcileExpiry() {
+  const dateEl = $('expiryDate');
+  const daysEl = $('dte');
+  if (!dateEl || !daysEl) return Number(daysEl?.value) || 0;
+
+  if (expirySource === 'date' && parseIsoDate(dateEl.value) != null) {
+    const days = daysUntil(dateEl.value);
+    // A past date is clamped to zero for the model (an expired option is
+    // worth intrinsic value) but left visible in the field so the user can
+    // see what they picked and correct it.
+    daysEl.value = String(Math.max(0, days));
+    return days;
+  }
+
+  const days = Number(daysEl.value);
+  if (Number.isFinite(days)) {
+    dateEl.value = isoDateInDays(Math.max(0, days));
+    return days;
+  }
+  return 0;
+}
+
+function renderExpiryNote(rawDays) {
+  const iso = ($('expiryDate') || {}).value || '';
+  if (!iso) {
+    setText('expiry-note', '');
+    return;
+  }
+  if (rawDays < 0) {
+    setText(
+      'expiry-note',
+      `${describeDate(iso)} is in the past. Priced as expired.`
+    );
+    return;
+  }
+  const parts = [describeDate(iso)];
+  if (isWeekend(iso)) {
+    parts.push('— weekend, check the date');
+  }
+  setText('expiry-note', parts.join(' '));
+}
+
+/* ------------------------------------------------------------------ *
+ * Option price and IV: each derives the other
+ * ------------------------------------------------------------------ */
+
+// 'iv' means the price field is derived from the volatility field, which is
+// the normal state. It flips to 'price' only while the user is typing a
+// price, at which point the volatility is solved from it instead. Any edit
+// to another field returns it to 'iv', so changing the stock price moves
+// the option price and leaves the volatility alone -- which is the right
+// way round, since volatility is a property of the market, not of spot.
+let priceSource = 'iv';
+
+export function setPriceSource(source) {
+  priceSource = source;
+}
+
+/**
+ * Make the price field and the IV field agree. Runs after expiry has
+ * settled, since both depend on time to expiry.
+ */
+function reconcilePrice() {
+  const priceEl = $('optionPrice');
+  const ivEl = $('iv');
+  if (!priceEl || !ivEl) return;
+
+  const S = Number(($('spot') || {}).value);
+  const K = Number(($('strike') || {}).value);
+  const T = Math.max(Number(($('dte') || {}).value) || 0, 0) / 365;
+  const r = Number(($('rate') || {}).value) / 100;
+  const q = Number(($('divyield') || {}).value) / 100;
+  const type = ($('type') || {}).value === 'put' ? 'put' : 'call';
+  if (!(S > 0) || !(K > 0)) return;
+
+  // Never overwrite a field the user is typing into: it would fight the
+  // keystrokes and move the caret.
+  const focused = document.activeElement;
+
+  if (priceSource === 'price') {
+    const quoted = Number(priceEl.value);
+    if (!(quoted > 0)) {
+      setText('price-note', '');
+      return;
+    }
+    const solved = impliedVol({ S, K, T, r, q, type, marketPrice: quoted });
+    if (solved == null) {
+      setText(
+        'price-note',
+        T <= 0
+          ? 'Already expired, so no volatility can be inferred.'
+          : 'No volatility produces that price. Check the strike, expiry, and call vs put.'
+      );
+      return;
+    }
+    if (focused !== ivEl) ivEl.value = (solved * 100).toFixed(2);
+    setText('price-note', `Implies ${pct(solved, 2)} volatility.`);
+    return;
+  }
+
+  const vol = Number(ivEl.value) / 100;
+  if (!(vol > 0)) {
+    setText('price-note', '');
+    return;
+  }
+  const modelled = evaluate({ S, K, T, vol, r, q, type }).price;
+  if (focused !== priceEl) priceEl.value = modelled.toFixed(2);
+  setText('price-note', 'Derived from the volatility beside it.');
 }
 
 /* ------------------------------------------------------------------ *
@@ -289,12 +438,23 @@ function renderValuation(m) {
   setText(
     'out-premium-note',
     m.premiumIsModel
-      ? 'Using the model price because you have not entered a fill.'
+      ? 'Using the option price above. Enter a fill here if you paid something different.'
       : Math.abs(premiumGap) < 0.005
-        ? 'Matches the model price.'
+        ? 'Matches the current option price.'
         : premiumGap > 0
-          ? `You paid ${money(premiumGap)} above model value.`
-          : `You paid ${money(-premiumGap)} below model value.`
+          ? `You paid ${money(premiumGap)} more than it is worth now.`
+          : `You paid ${money(-premiumGap)} less than it is worth now.`
+  );
+
+  // Open P&L: what the position is worth now against what it cost. Zero by
+  // construction until a fill different from the option price is entered,
+  // which is why it reads as a dash rather than "$0.00" in that case.
+  const openPnl = (m.now.price - m.premium) * m.sideSign * m.multiplier;
+  setText(
+    'out-unrealised',
+    m.premiumIsModel || Math.abs(premiumGap) < 0.005
+      ? '--'
+      : `${signedMoney(openPnl)} (${signedPct(openPnl / (m.premium * m.multiplier), 1)})`
   );
 }
 
@@ -616,6 +776,13 @@ function main() {
   }
 
   function refresh() {
+    // Expiry first: it rewrites one of the two expiry fields, so it has to
+    // settle before anything reads them.
+    const rawDays = reconcileExpiry();
+    renderExpiryNote(rawDays);
+    // Price/IV depend on time to expiry, so this has to follow expiry.
+    reconcilePrice();
+
     const fields = readFields();
     syncControlRanges(fields);
 
@@ -642,55 +809,37 @@ function main() {
     writeHash(readFields());
   }
 
-  // Bind every declared field.
-  for (const f of FIELDS) {
-    const nodes = f.kind === 'radio' ? radioGroup(f.id) : [$(f.id)];
-    for (const node of nodes) {
-      if (!node) continue;
-      node.addEventListener('input', refresh);
-      node.addEventListener('change', refresh);
+  // Record which expiry control was touched, so reconcileExpiry() knows
+  // which of the two to treat as authoritative. Registered before the
+  // generic field binding below, but order does not matter: these only set
+  // a flag that refresh() reads.
+  const dateEl = $('expiryDate');
+  if (dateEl) {
+    for (const event of ['input', 'change']) {
+      dateEl.addEventListener(event, () => setExpirySource('date'));
+    }
+  }
+  const daysEl = $('dte');
+  if (daysEl) {
+    for (const event of ['input', 'change']) {
+      daysEl.addEventListener(event, () => setExpirySource('days'));
     }
   }
 
-  // "Solve IV from a market price" helper: the inverse direction, for
-  // when a broker shows a price but not an implied volatility.
-  const solveBtn = $('btn-solve-iv');
-  if (solveBtn) {
-    solveBtn.addEventListener('click', () => {
-      const fields = readFields();
-      const marketPrice = Number(($('marketPrice') || {}).value);
-      const note = $('solve-iv-note');
-      if (!(marketPrice > 0)) {
-        if (note) note.textContent = 'Enter the option price you were quoted first.';
-        return;
-      }
-      const v = impliedVol({
-        S: fields.spot,
-        K: fields.strike,
-        T: Math.max(fields.dte, 0) / 365,
-        r: fields.rate / 100,
-        q: fields.divyield / 100,
-        type: fields.type === 'put' ? 'put' : 'call',
-        marketPrice,
-      });
-      if (v == null) {
-        if (note) {
-          note.textContent =
-            'Cannot determine IV from that price. Either no volatility ' +
-            'reproduces it (check the strike, expiry, and call vs put), or the ' +
-            'option is trading at parity with no time value left, in which ' +
-            'case volatility has no effect on its price.';
-        }
-        return;
-      }
-      $('iv').value = (v * 100).toFixed(2);
-      $('exitIv').value = (v * 100).toFixed(0);
-      $('premium').value = marketPrice.toFixed(2);
-      if (note) {
-        note.textContent = `That price implies ${pct(v, 2)} volatility. Filled in above.`;
-      }
+  // Bind every declared field. Typing in the price field inverts the model
+  // to get a volatility; editing anything else leaves volatility alone and
+  // lets the price follow.
+  for (const f of FIELDS) {
+    const nodes = f.kind === 'radio' ? radioGroup(f.id) : [$(f.id)];
+    const handler = () => {
+      setPriceSource(f.id === 'optionPrice' ? 'price' : 'iv');
       refresh();
-    });
+    };
+    for (const node of nodes) {
+      if (!node) continue;
+      node.addEventListener('input', handler);
+      node.addEventListener('change', handler);
+    }
   }
 
   // Match the exit IV to entry IV, i.e. assume no volatility change.
@@ -738,12 +887,21 @@ function main() {
   // following an in-page link to one, would otherwise leave the form
   // showing stale values. writeHash() uses replaceState, which does not
   // fire hashchange, so this cannot loop.
+  // A link carrying an explicit expiry date must win over any day count in
+  // the same link, since the date is what identifies the contract.
+  const adoptHashExpiry = () => {
+    const iso = ($('expiryDate') || {}).value;
+    setExpirySource(iso && parseIsoDate(iso) != null ? 'date' : 'days');
+  };
+
   window.addEventListener('hashchange', () => {
     restoreFromHash();
+    adoptHashExpiry();
     refresh();
   });
 
   restoreFromHash();
+  adoptHashExpiry();
   refresh();
 }
 
