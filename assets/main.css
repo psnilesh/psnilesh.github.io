@@ -578,7 +578,7 @@ footer span {
   text-decoration: none;
 }
 .catalogue-item:hover .catalogue-title {
-  color: rgb(39.2, 104, 164.8);
+  color: rgb(15.3725490196%, 40.7843137255%, 64.6274509804%);
   text-decoration: none;
 }
 .catalogue-item:hover .catalogue-line, .catalogue-item:focus .catalogue-line {

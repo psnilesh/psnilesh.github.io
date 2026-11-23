@@ -1,0 +1,566 @@
+/*
+ * Styles for the options calculator.
+ *
+ * Every rule is scoped under .oc so nothing here can leak into the blog
+ * theme. Colours and fonts intentionally reuse the values from
+ * _sass/tale/_variables.scss rather than importing Sass, because this
+ * file is served as plain CSS and is not part of the Sass build.
+ *
+ * If the theme palette changes, the hex values below and the COLORS map
+ * in js/chart.js both need updating. That duplication is the cost of
+ * keeping the app self-contained; see DESIGN.md.
+ */
+
+.oc {
+  --oc-text: #2d3748;
+  --oc-muted: #718096;
+  --oc-tint: #1a202c;
+  --oc-rule: #e2e8f0;
+  --oc-surface: #f7fafc;
+  --oc-white: #ffffff;
+  --oc-blue: #3182ce;
+  --oc-green: #059669;
+  --oc-red: #dc2626;
+  --oc-amber: #d97706;
+
+  --oc-sans: 'Helvetica Neue', 'Segoe UI', Helvetica, Arial, sans-serif;
+  --oc-mono: Menlo, Monaco, monospace;
+
+  font-family: var(--oc-sans);
+  color: var(--oc-text);
+
+  /* The site's <main> is capped at 800px, which is too narrow for a
+     two-column calculator. Break out of it without touching the theme. */
+  width: min(1140px, 94vw);
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* ---------------------------------------------------------------- *
+ * Typography
+ * ---------------------------------------------------------------- */
+
+.oc h2 {
+  font-size: 1.15rem;
+  margin: 0 0 0.25rem;
+  color: var(--oc-tint);
+}
+
+.oc h3 {
+  font-size: 0.95rem;
+  margin: 0 0 0.75rem;
+  color: var(--oc-tint);
+}
+
+.oc .oc-lede {
+  color: var(--oc-muted);
+  font-size: 0.9rem;
+  margin: 0 0 1.5rem;
+}
+
+.oc .oc-hint {
+  color: var(--oc-muted);
+  font-size: 0.78rem;
+  margin: 0.3rem 0 0;
+  line-height: 1.45;
+}
+
+.oc .oc-numeric,
+.oc .oc-value {
+  font-family: var(--oc-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.oc-bad { color: var(--oc-red); }
+.oc-good { color: var(--oc-green); }
+
+/* ---------------------------------------------------------------- *
+ * Cards and layout
+ * ---------------------------------------------------------------- */
+
+.oc-card {
+  background: var(--oc-white);
+  border: 1px solid var(--oc-rule);
+  border-radius: 6px;
+  padding: 1.1rem 1.2rem;
+  margin-bottom: 1.1rem;
+}
+
+.oc-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.oc-card-head h2,
+.oc-card-head h3 { margin-bottom: 0; }
+
+/* Copy button plus its own status text, so the confirmation does not have
+   to borrow an unrelated paragraph elsewhere on the page. */
+.oc-copy-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+.oc-copy-group .oc-hint {
+  margin: 0;
+  white-space: nowrap;
+  color: var(--oc-green);
+}
+
+.oc-top {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(320px, 1.25fr);
+  gap: 1.1rem;
+  align-items: start;
+}
+
+.oc-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.1rem;
+}
+
+@media screen and (max-width: 880px) {
+  .oc-top,
+  .oc-split { grid-template-columns: 1fr; }
+  .oc {
+    width: 100%;
+    left: auto;
+    transform: none;
+  }
+}
+
+/* ---------------------------------------------------------------- *
+ * Form controls
+ * ---------------------------------------------------------------- */
+
+.oc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 0.9rem;
+}
+
+.oc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.oc-field.oc-span { grid-column: 1 / -1; }
+
+.oc-field label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--oc-muted);
+  font-weight: 600;
+}
+
+.oc input[type='text'],
+.oc input[type='number'],
+.oc select {
+  font-family: var(--oc-mono);
+  font-size: 0.92rem;
+  line-height: 1.4;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--oc-rule);
+  border-radius: 4px;
+  background-color: var(--oc-white);
+  color: var(--oc-text);
+  width: 100%;
+  height: 2.35rem;
+
+  /* Required, not cosmetic. Without it Safari and Firefox keep their own
+     native control chrome and render it on top of this border, padding and
+     radius, which produces a squashed or double-bordered box. Chromium
+     happens to look acceptable either way, so this bug is invisible in
+     headless testing. Removing appearance also removes the native dropdown
+     arrow, so .oc select draws its own below. */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.oc select {
+  font-family: var(--oc-sans);
+
+  /* Chevron drawn as an inline SVG data URI. '#' must be written as %23. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23718096' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  background-size: 10px 6px;
+  padding-right: 2rem;
+  cursor: pointer;
+}
+
+/* Safari ignores colour on <option> inside a styled select; set it so the
+   open dropdown list does not inherit an unreadable combination. */
+.oc select option {
+  color: var(--oc-text);
+  background-color: var(--oc-white);
+}
+
+.oc input:focus,
+.oc select:focus {
+  outline: 2px solid rgba(49, 130, 206, 0.35);
+  outline-offset: 1px;
+  border-color: var(--oc-blue);
+}
+
+.oc input[type='range'] {
+  width: 100%;
+  accent-color: var(--oc-blue);
+  margin: 0.35rem 0 0;
+}
+
+.oc button {
+  font-family: var(--oc-sans);
+  font-size: 0.82rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--oc-rule);
+  border-radius: 4px;
+  background: var(--oc-surface);
+  color: var(--oc-blue);
+  cursor: pointer;
+  /* Same reason as the inputs above: Safari applies its own button chrome
+     over custom borders and padding otherwise. */
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.oc button:hover {
+  border-color: var(--oc-blue);
+  background: var(--oc-white);
+}
+
+.oc-inline {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.oc-inline .oc-field { flex: 1 1 10rem; }
+
+.oc details.oc-advanced {
+  margin-top: 0.9rem;
+  border-top: 1px solid var(--oc-rule);
+  padding-top: 0.7rem;
+}
+
+.oc details.oc-advanced summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--oc-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.oc details.oc-advanced > .oc-grid { margin-top: 0.75rem; }
+
+/* ---------------------------------------------------------------- *
+ * Readouts
+ * ---------------------------------------------------------------- */
+
+.oc-headline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--oc-rule);
+  margin-bottom: 0.9rem;
+}
+
+.oc-headline-item { min-width: 8rem; }
+
+.oc-headline-item .oc-label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--oc-muted);
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+
+.oc-headline-item .oc-big {
+  font-family: var(--oc-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.5rem;
+  color: var(--oc-tint);
+  line-height: 1.1;
+}
+
+.oc-headline-item .oc-sub {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--oc-muted);
+  margin-top: 0.15rem;
+}
+
+.oc-rows { display: grid; gap: 0.55rem; }
+
+.oc-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+  align-items: baseline;
+  font-size: 0.86rem;
+}
+
+.oc-row > .oc-row-label { color: var(--oc-muted); }
+
+.oc-row > .oc-value {
+  color: var(--oc-tint);
+  font-size: 0.92rem;
+}
+
+/* ---------------------------------------------------------------- *
+ * Greeks
+ * ---------------------------------------------------------------- */
+
+.oc-greeks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.9rem;
+}
+
+.oc-greek {
+  border: 1px solid var(--oc-rule);
+  border-radius: 5px;
+  padding: 0.7rem 0.8rem;
+  background: var(--oc-surface);
+}
+
+.oc-greek-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.oc-greek-name {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  color: var(--oc-tint);
+}
+
+.oc-greek-value {
+  font-family: var(--oc-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+  color: var(--oc-blue);
+}
+
+.oc-greek-note {
+  font-size: 0.76rem;
+  color: var(--oc-muted);
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------- *
+ * Chart
+ * ---------------------------------------------------------------- */
+
+.oc-chart-wrap {
+  position: relative;
+  height: 420px;
+  margin-bottom: 0.9rem;
+}
+
+@media screen and (max-width: 600px) {
+  .oc-chart-wrap { height: 300px; }
+}
+
+.oc-chart-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--oc-rule);
+}
+
+.oc-slider-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.oc-slider-head .oc-slider-value {
+  font-family: var(--oc-mono);
+  font-size: 0.82rem;
+  color: var(--oc-blue);
+}
+
+.oc-segmented {
+  display: inline-flex;
+  border: 1px solid var(--oc-rule);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.oc-segmented label {
+  font-size: 0.8rem;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  background: var(--oc-white);
+  color: var(--oc-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+
+.oc-segmented input { position: absolute; opacity: 0; pointer-events: none; }
+
+.oc-segmented input:checked + label {
+  background: var(--oc-blue);
+  color: var(--oc-white);
+}
+
+/* ---------------------------------------------------------------- *
+ * Tables
+ * ---------------------------------------------------------------- */
+
+.oc table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.oc table th,
+.oc table td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--oc-rule);
+  text-align: left;
+}
+
+.oc table th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--oc-muted);
+  font-weight: 600;
+}
+
+.oc table td.oc-numeric { text-align: right; }
+.oc table th:not(:first-child) { text-align: right; }
+.oc table tbody tr:last-child td { border-bottom: none; }
+
+/* ---------------------------------------------------------------- *
+ * Comparison callouts
+ * ---------------------------------------------------------------- */
+
+.oc-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+  margin-bottom: 0.8rem;
+}
+
+@media screen and (max-width: 600px) {
+  .oc-compare { grid-template-columns: 1fr; }
+}
+
+.oc-compare-cell {
+  border: 1px solid var(--oc-rule);
+  border-left: 3px solid var(--oc-muted);
+  border-radius: 4px;
+  padding: 0.7rem 0.85rem;
+  background: var(--oc-surface);
+}
+
+.oc-compare-cell.oc-accent { border-left-color: var(--oc-blue); }
+
+.oc-compare-cell .oc-label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--oc-muted);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.oc-compare-cell .oc-big {
+  font-family: var(--oc-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.3rem;
+  color: var(--oc-tint);
+}
+
+.oc-compare-cell .oc-sub {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--oc-muted);
+  margin-top: 0.15rem;
+}
+
+/* ---------------------------------------------------------------- *
+ * Error banner
+ * ---------------------------------------------------------------- */
+
+.oc-errors {
+  background: #fff5f5;
+  border: 1px solid #feb2b2;
+  color: #9b2c2c;
+  border-radius: 5px;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+/* ---------------------------------------------------------------- *
+ * Explainer prose
+ * ---------------------------------------------------------------- */
+
+.oc-explainer details {
+  border-bottom: 1px solid var(--oc-rule);
+  padding: 0.7rem 0;
+}
+
+.oc-explainer details:last-child { border-bottom: none; }
+
+.oc-explainer summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--oc-tint);
+  font-size: 0.92rem;
+}
+
+.oc-explainer .oc-body {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  padding-top: 0.6rem;
+}
+
+.oc-explainer .oc-body p { margin: 0 0 0.7rem; }
+.oc-explainer .oc-body p:last-child { margin-bottom: 0; }
+
+.oc-explainer .oc-body code {
+  font-family: var(--oc-mono);
+  font-size: 0.85rem;
+  background: var(--oc-surface);
+  border: 1px solid var(--oc-rule);
+  border-radius: 3px;
+  padding: 0.1em 0.35em;
+  color: var(--oc-text);
+}
+
+.oc-footnote {
+  font-size: 0.78rem;
+  color: var(--oc-muted);
+  line-height: 1.55;
+  margin: 1.5rem 0 0;
+}
