@@ -162,8 +162,13 @@
   font-weight: 600;
 }
 
+/* Shared field treatment. Every input type the app uses must be listed
+   here: a type that is missing matches nothing and silently falls back to
+   browser defaults, which is how the date field ended up with the wrong
+   font and height. */
 .oc input[type='text'],
 .oc input[type='number'],
+.oc input[type='date'],
 .oc select {
   font-family: var(--oc-mono);
   font-size: 0.92rem;
@@ -175,16 +180,56 @@
   color: var(--oc-text);
   width: 100%;
   height: 2.35rem;
+}
 
-  /* Required, not cosmetic. Without it Safari and Firefox keep their own
-     native control chrome and render it on top of this border, padding and
-     radius, which produces a squashed or double-bordered box. Chromium
-     happens to look acceptable either way, so this bug is invisible in
-     headless testing. Removing appearance also removes the native dropdown
-     arrow, so .oc select draws its own below. */
+/* Native widget suppression, for text, number and select only.
+   Required, not cosmetic: without it Safari and Firefox keep their own
+   control chrome and render it over this border, padding and radius,
+   producing a squashed or double-bordered box. Chromium looks acceptable
+   either way, so the bug is invisible in headless testing. Removing the
+   appearance also removes the native dropdown arrow, so .oc select draws
+   its own below.
+
+   Date inputs are deliberately excluded: appearance:none can suppress
+   ::-webkit-calendar-picker-indicator, leaving no visible way to open the
+   picker. They take the shared box above and the tweaks below instead. */
+.oc input[type='text'],
+.oc input[type='number'],
+.oc select {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
+}
+
+/* Date fields keep their native picker but are pulled into line with the
+   rest: same monospace digits, and a calendar icon toned down to match the
+   select chevron rather than sitting there at full contrast. */
+.oc input[type='date']::-webkit-datetime-edit,
+.oc input[type='date']::-webkit-datetime-edit-text,
+.oc input[type='date']::-webkit-datetime-edit-month-field,
+.oc input[type='date']::-webkit-datetime-edit-day-field,
+.oc input[type='date']::-webkit-datetime-edit-year-field {
+  font-family: var(--oc-mono);
+  color: var(--oc-text);
+  padding: 0;
+}
+
+.oc input[type='date']::-webkit-calendar-picker-indicator {
+  opacity: 0.45;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 0.25rem;
+}
+
+.oc input[type='date']::-webkit-calendar-picker-indicator:hover,
+.oc input[type='date']:focus::-webkit-calendar-picker-indicator {
+  opacity: 0.9;
+}
+
+/* Firefox renders a clear button that pushes the text off-centre. */
+.oc input[type='date']::-moz-calendar-picker-indicator {
+  opacity: 0.45;
+  cursor: pointer;
 }
 
 .oc select {
