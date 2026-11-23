@@ -1,0 +1,576 @@
+---
+layout: default.njk
+title: "Options calculator"
+permalink: /apps/options/
+pageCss: /apps/options/css/options.css
+
+# Used by the /apps/ index page. See the "apps" collection in .eleventy.js.
+summary: >
+  Price a single call or put, see what each Greek costs you, and find the
+  stock price you need to break even if you sell rather than exercise,
+  after implied volatility reverts.
+tech: Black-Scholes, Chart.js
+---
+
+<div class="oc">
+
+  <h2>Options calculator</h2>
+  <p class="oc-lede">
+    Prices a single call or put, shows what each Greek is actually costing you,
+    and answers the question brokers do not: where does the stock have to be for
+    you to break even if you <em>sell</em> the option instead of exercising it,
+    after implied volatility falls back to normal.
+  </p>
+
+  <div id="oc-errors" class="oc-errors" hidden></div>
+
+  <!-- ============================================================ -->
+  <!-- Position inputs and valuation                                -->
+  <!-- ============================================================ -->
+
+  <div class="oc-top">
+
+    <section class="oc-card">
+      <div class="oc-card-head">
+        <h3>Position</h3>
+        <div class="oc-copy-group">
+          <span class="oc-hint" id="copy-note" role="status" aria-live="polite"></span>
+          <button type="button" id="btn-copy-link">Copy link</button>
+        </div>
+      </div>
+
+      <div class="oc-grid">
+        <div class="oc-field">
+          <label for="sym">Ticker (optional)</label>
+          <input type="text" id="sym" placeholder="AAPL" autocomplete="off">
+        </div>
+        <div class="oc-field">
+          <label for="qty">Contracts</label>
+          <input type="number" id="qty" value="1" min="1" step="1">
+        </div>
+
+        <div class="oc-field">
+          <label for="side">Direction</label>
+          <select id="side">
+            <option value="long">Buy (long)</option>
+            <option value="short">Sell (short)</option>
+          </select>
+        </div>
+        <div class="oc-field">
+          <label for="type">Type</label>
+          <select id="type">
+            <option value="call">Call</option>
+            <option value="put">Put</option>
+          </select>
+        </div>
+
+        <div class="oc-field">
+          <label for="spot">Stock price</label>
+          <input type="number" id="spot" value="100" step="0.01" min="0.01">
+        </div>
+        <div class="oc-field">
+          <label for="strike">Strike</label>
+          <input type="number" id="strike" value="100" step="0.5" min="0.01">
+        </div>
+
+        <div class="oc-field">
+          <label for="dte">Days to expiry</label>
+          <input type="number" id="dte" value="30" step="1" min="0">
+        </div>
+        <div class="oc-field">
+          <label for="iv">Implied volatility %</label>
+          <input type="number" id="iv" value="30" step="0.5" min="0.1">
+        </div>
+
+        <div class="oc-field oc-span">
+          <label for="premium">Premium you paid, per share (optional)</label>
+          <input type="number" id="premium" placeholder="defaults to model price" step="0.01" min="0">
+          <p class="oc-hint" id="out-premium-note"></p>
+        </div>
+      </div>
+
+      <details class="oc-advanced">
+        <summary>Don't know the IV?</summary>
+        <div class="oc-inline" style="margin-top:0.75rem;">
+          <div class="oc-field">
+            <label for="marketPrice">Quoted option price</label>
+            <input type="number" id="marketPrice" step="0.01" min="0" placeholder="3.45">
+          </div>
+          <button type="button" id="btn-solve-iv">Solve for IV</button>
+        </div>
+        <p class="oc-hint" id="solve-iv-note">
+          Enter what your broker is quoting and this works backwards to the
+          implied volatility, which is the only way to tell whether an option is
+          expensive.
+        </p>
+      </details>
+
+      <details class="oc-advanced">
+        <summary>Advanced</summary>
+        <div class="oc-grid">
+          <div class="oc-field">
+            <label for="rate">Risk-free rate %</label>
+            <input type="number" id="rate" value="0" step="0.1">
+          </div>
+          <div class="oc-field">
+            <label for="divyield">Dividend yield %</label>
+            <input type="number" id="divyield" value="0" step="0.1">
+          </div>
+        </div>
+        <p class="oc-hint">
+          Both default to zero. Over 30 days they move the price by pennies; they
+          matter for options running a year or more.
+        </p>
+      </details>
+    </section>
+
+    <section class="oc-card">
+      <h3>Valuation</h3>
+
+      <div class="oc-headline">
+        <div class="oc-headline-item">
+          <span class="oc-label">Model value</span>
+          <span class="oc-big" id="out-model-price">--</span>
+          <span class="oc-sub">per share</span>
+        </div>
+        <div class="oc-headline-item">
+          <span class="oc-label">Total</span>
+          <span class="oc-big" id="out-model-total">--</span>
+          <span class="oc-sub">x 100 shares per contract</span>
+        </div>
+        <div class="oc-headline-item">
+          <span class="oc-label">Your cost</span>
+          <span class="oc-big" id="out-premium">--</span>
+          <span class="oc-sub" id="out-premium-total">--</span>
+        </div>
+      </div>
+
+      <div class="oc-rows">
+        <div class="oc-row">
+          <span class="oc-row-label">Status</span>
+          <span class="oc-value" id="out-moneyness">--</span>
+        </div>
+        <div class="oc-row">
+          <span class="oc-row-label">Intrinsic value (exercise now)</span>
+          <span class="oc-value" id="out-intrinsic">--</span>
+        </div>
+        <div class="oc-row">
+          <span class="oc-row-label">Time value (what decays away)</span>
+          <span class="oc-value" id="out-extrinsic">--</span>
+        </div>
+        <div class="oc-row">
+          <span class="oc-row-label">At-the-money shortcut</span>
+          <span class="oc-value" id="out-approx">--</span>
+        </div>
+      </div>
+      <p class="oc-hint" id="out-approx-note"></p>
+    </section>
+
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- Greeks                                                       -->
+  <!-- ============================================================ -->
+
+  <section class="oc-card">
+    <div class="oc-card-head">
+      <h3>Greeks</h3>
+      <span class="oc-hint" style="margin:0;">Signed for your direction, with dollar impact at your size.</span>
+    </div>
+
+    <div class="oc-greeks">
+      <div class="oc-greek">
+        <div class="oc-greek-top">
+          <span class="oc-greek-name">Delta</span>
+          <span class="oc-greek-value" id="g-delta">--</span>
+        </div>
+        <p class="oc-greek-note" id="g-delta-note"></p>
+      </div>
+
+      <div class="oc-greek">
+        <div class="oc-greek-top">
+          <span class="oc-greek-name">Gamma</span>
+          <span class="oc-greek-value" id="g-gamma">--</span>
+        </div>
+        <p class="oc-greek-note" id="g-gamma-note"></p>
+      </div>
+
+      <div class="oc-greek">
+        <div class="oc-greek-top">
+          <span class="oc-greek-name">Theta</span>
+          <span class="oc-greek-value" id="g-theta">--</span>
+        </div>
+        <p class="oc-greek-note" id="g-theta-note"></p>
+      </div>
+
+      <div class="oc-greek">
+        <div class="oc-greek-top">
+          <span class="oc-greek-name">Vega</span>
+          <span class="oc-greek-value" id="g-vega">--</span>
+        </div>
+        <p class="oc-greek-note" id="g-vega-note"></p>
+      </div>
+
+      <div class="oc-greek">
+        <div class="oc-greek-top">
+          <span class="oc-greek-name">Rho</span>
+          <span class="oc-greek-value" id="g-rho">--</span>
+        </div>
+        <p class="oc-greek-note" id="g-rho-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- Payoff chart                                                 -->
+  <!-- ============================================================ -->
+
+  <section class="oc-card">
+    <div class="oc-card-head">
+      <h3>Payoff</h3>
+      <div class="oc-segmented">
+        <input type="radio" name="view" id="view-value" value="value" checked>
+        <label for="view-value">Option value</label>
+        <input type="radio" name="view" id="view-pnl" value="pnl">
+        <label for="view-pnl">Profit / loss</label>
+      </div>
+    </div>
+
+    <div class="oc-chart-wrap">
+      <canvas id="payoff-chart"></canvas>
+    </div>
+
+    <div class="oc-chart-controls">
+      <div class="oc-field">
+        <div class="oc-slider-head">
+          <label for="exitDays">Sell on</label>
+          <span class="oc-slider-value" id="exitDaysOut">--</span>
+        </div>
+        <input type="range" id="exitDays" min="0" max="30" step="1" value="1">
+        <p class="oc-hint" id="exitDaysRemainingOut"></p>
+      </div>
+
+      <div class="oc-field">
+        <div class="oc-slider-head">
+          <label for="exitIv">IV when you sell</label>
+          <span class="oc-slider-value" id="exitIvOut">--</span>
+        </div>
+        <input type="range" id="exitIv" min="1" max="200" step="1" value="30">
+        <p class="oc-hint" id="exitIvDelta"></p>
+      </div>
+
+      <div class="oc-field">
+        <label>Quick scenarios</label>
+        <div class="oc-inline" style="margin-top:0.35rem;">
+          <button type="button" id="btn-flat-iv">IV unchanged</button>
+          <button type="button" id="btn-crush-iv">Halve the IV</button>
+        </div>
+        <!-- Static guidance. Deliberately carries no id: it previously had
+             id="copy-note", so clicking "Copy link" at the top of the page
+             replaced this instruction with "Link copied." permanently. -->
+        <p class="oc-hint">
+          Drag the IV slider down and watch the solid curve drop with the stock
+          price fixed. That drop is the volatility crush.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- Breakevens and the event scenario                            -->
+  <!-- ============================================================ -->
+
+  <div class="oc-split">
+
+    <section class="oc-card">
+      <h3>Two different breakevens</h3>
+
+      <div class="oc-compare">
+        <div class="oc-compare-cell">
+          <span class="oc-label">Hold to expiry</span>
+          <span class="oc-big" id="be-expiry">--</span>
+          <span class="oc-sub" id="be-expiry-move">--</span>
+        </div>
+        <div class="oc-compare-cell oc-accent">
+          <span class="oc-label">Sell on your exit date</span>
+          <span class="oc-big" id="be-early">--</span>
+          <span class="oc-sub" id="be-early-move">--</span>
+        </div>
+      </div>
+
+      <div class="oc-rows">
+        <div class="oc-row">
+          <span class="oc-row-label">Difference</span>
+          <span class="oc-value" id="be-gap">--</span>
+        </div>
+      </div>
+      <p class="oc-hint" id="be-gap-note"></p>
+    </section>
+
+    <section class="oc-card">
+      <div class="oc-card-head">
+        <h3>Event / volatility crush</h3>
+      </div>
+
+      <div class="oc-field" style="margin-bottom:0.9rem;">
+        <label for="eventIvAfter">IV after the event settles %</label>
+        <input type="number" id="eventIvAfter" value="15" step="1" min="0.1">
+        <p class="oc-hint">
+          Where volatility normally sits for this stock when nothing is pending.
+          Compare it against the IV you are paying now.
+        </p>
+      </div>
+
+      <div class="oc-rows">
+        <div class="oc-row">
+          <span class="oc-row-label">Premium paid</span>
+          <span class="oc-value" id="ev-paid">--</span>
+        </div>
+        <div class="oc-row">
+          <span class="oc-row-label">Worth this, if the stock does not move</span>
+          <span class="oc-value" id="ev-flat">--</span>
+        </div>
+        <div class="oc-row">
+          <span class="oc-row-label">Loss from the crush alone</span>
+          <span class="oc-value" id="ev-crush">--</span>
+        </div>
+        <div class="oc-row">
+          <span class="oc-row-label">As a share of premium</span>
+          <span class="oc-value" id="ev-crush-pct">--</span>
+        </div>
+        <div class="oc-row">
+          <span class="oc-row-label">Breakeven stock price</span>
+          <span class="oc-value" id="ev-breakeven">--</span>
+        </div>
+        <div class="oc-row">
+          <span class="oc-row-label">Move required</span>
+          <span class="oc-value" id="ev-required">--</span>
+        </div>
+      </div>
+      <p class="oc-hint" id="ev-note"></p>
+    </section>
+
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- Expected move table                                          -->
+  <!-- ============================================================ -->
+
+  <section class="oc-card">
+    <div class="oc-card-head">
+      <h3>What this IV actually predicts</h3>
+      <span class="oc-hint" style="margin:0;">One standard deviation, so roughly two thirds of outcomes.</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Horizon</th>
+          <th>Fraction of a year</th>
+          <th>Square root</th>
+          <th>Expected move</th>
+          <th>In dollars</th>
+          <th>Range</th>
+        </tr>
+      </thead>
+      <tbody id="moves-body"></tbody>
+    </table>
+    <p class="oc-hint" id="moves-note"></p>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- Explainer                                                    -->
+  <!-- ============================================================ -->
+
+  <section class="oc-card oc-explainer">
+    <h3>Reference</h3>
+
+    <details>
+      <summary>What implied volatility is</summary>
+      <div class="oc-body">
+        <p>
+          Volatility measures how much a stock bounces around, in either
+          direction, expressed as a percentage per year. It says nothing about
+          direction: 30% volatility does not mean the stock is expected to gain
+          30%, it means the stock is expected to end the year within roughly
+          &plusmn;30% of today about two thirds of the time.
+        </p>
+        <p>
+          Nobody publishes a volatility number. What you see is a price. An
+          option formula turns stock price, strike, time and volatility into a
+          price, so traders run it backwards and ask which volatility figure
+          reproduces the price being quoted. That answer is the
+          <em>implied</em> volatility. It is the market's forecast and a price
+          tag at the same time, which is why it is the right way to compare a
+          $3 option on a $100 stock against a $12 option on a $400 one.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Why volatility scales with the square root of time</summary>
+      <div class="oc-body">
+        <p>
+          Suppose a stock moves exactly &plusmn;8.66% each month on a coin flip.
+          After twelve months it is not 12 &times; 8.66% = 104% away from where
+          it started, because a typical year delivers about six up months and
+          six down months that largely cancel.
+        </p>
+        <p>
+          For independent moves, variances add but standard deviations do not,
+          so the typical distance after <code>n</code> steps of size
+          <code>d</code> is <code>d &times; sqrt(n)</code>. Twelve months of
+          8.66% composes to 8.66% &times; sqrt(12) = 30% for the year. Running it
+          backwards, one month of a 30% annual volatility is
+          <code>30% / sqrt(12)</code>, which is 8.66%, not
+          <code>30% / 12</code>.
+        </p>
+        <p>
+          Dividing by 12 would assume no cancellation at all. The square root
+          sits between "every move adds up" and "every move cancels", and the
+          table above is just that arithmetic at five horizons. The same
+          relationship gives the trader's shortcut: annual IV divided by
+          sqrt(252) &asymp; 16 is a typical day's move.
+        </p>
+        <p>
+          It also explains why a three-month option costs nowhere near three
+          times a one-month option. It costs about sqrt(3) &asymp; 1.7 times as
+          much, so longer-dated options are cheap per unit of time.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Reading the Greeks</summary>
+      <div class="oc-body">
+        <p>
+          <strong>Delta</strong> is how many dollars the option gains per $1 the
+          stock gains. It doubles as a rough probability of finishing in the
+          money, so 0.52 is close to a coin flip. Calls run 0 to 1, puts 0 to
+          &minus;1.
+        </p>
+        <p>
+          <strong>Gamma</strong> is delta's own rate of change, and it is the
+          reason large moves pay disproportionately. At $100 your delta might be
+          0.52; by $105 it is 0.73, so each dollar earns more than the last.
+          Gamma is largest at the money and grows enormous near expiry.
+        </p>
+        <p>
+          <strong>Theta</strong> is what you lose per day with the stock
+          unchanged. It accelerates as expiry approaches, because the remaining
+          time value tracks sqrt(T), and sqrt(T) falls off a cliff at the end:
+          30 days to 15 days costs 29% of it, 4 days to 1 day costs half.
+        </p>
+        <p>
+          <strong>Vega</strong> is what one point of implied volatility is
+          worth. It is the one that bites when nothing visible happens.
+          <strong>Rho</strong> is interest rate sensitivity and barely matters
+          on short-dated trades.
+        </p>
+        <p>
+          Delta is not fixed as volatility changes. Higher IV pulls every delta
+          toward 0.50; lower IV pushes them out toward 0 and 1. So a volatility
+          collapse both cuts your position value and reduces how much you earn
+          per dollar of recovery.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Why the broker's breakeven is the wrong number for a seller</summary>
+      <div class="oc-body">
+        <p>
+          The breakeven a broker displays is <code>strike + premium</code> for a
+          call and <code>strike - premium</code> for a put. It is arithmetic
+          rather than a model, and it is volatility-independent by construction,
+          because at expiry every Greek has decayed to nothing and the option is
+          worth exactly its intrinsic value.
+        </p>
+        <p>
+          If you intend to sell rather than exercise, that number is too
+          pessimistic: selling early also recovers whatever time value is left,
+          so your real breakeven is lower. It is also silent about the thing most
+          likely to hurt you, which is the volatility drop you absorb in the
+          first minutes after a scheduled event. The panel above solves for the
+          stock price at which the option is worth what you paid, on a date and
+          at a volatility you choose.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>The volatility crush, and why being right is not enough</summary>
+      <div class="oc-body">
+        <p>
+          Before an announcement nobody knows the outcome, so the market prices
+          in a large move and implied volatility is high. Once the news is out
+          the uncertainty is resolved, the rest of the option's life is ordinary
+          trading, and volatility falls back to normal. Being long options means
+          being long vega, so that fall costs you money regardless of direction.
+        </p>
+        <p>
+          Worked example: a $100 stock with earnings tomorrow, a 30-day $100 call
+          at 70% IV costing about $8.05. Earnings land well, the stock rises 3%
+          to $103, and IV reverts to 35%. The call is now worth about $5.77. You
+          called the direction correctly and lost 28%. The stock needed roughly
+          $106.40, about a 6.4% move, just to break even, and that 6.4% figure is
+          approximately what the market charged you for.
+        </p>
+        <p>
+          Scheduled events do this reliably: earnings, FDA decisions, court
+          rulings, elections, rate decisions, merger votes. The tell is simple.
+          Compare the option's current IV against its usual level for that stock.
+          If it is double, something is priced in and you are paying for it.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>What this model assumes, and where it is wrong</summary>
+      <div class="oc-body">
+        <p>
+          This is Black-Scholes, which prices <em>European</em> options: exercise
+          only at expiry. US single-stock options are American style and can be
+          exercised early, which makes a real American put worth slightly more
+          than shown here. For the buy-to-sell trading this page is aimed at, the
+          difference is usually small; for deep in-the-money puts, or calls on a
+          stock about to pay a large dividend, it is not.
+        </p>
+        <p>
+          It also assumes returns are lognormally distributed and volatility is a
+          single constant number. Real markets have fat tails and a volatility
+          smile, meaning different strikes trade at different implied
+          volatilities. Enter the IV for the specific strike you are looking at
+          rather than one figure for the whole chain.
+        </p>
+        <p>
+          The dividend input is a continuous yield, which suits an index. Single
+          stocks pay discrete dividends on specific dates, and that is not
+          modelled.
+        </p>
+        <p>
+          Nothing here accounts for the bid-ask spread, which for an illiquid
+          option quoted $3.20 / $3.70 costs about 15% round-trip and will swamp
+          every refinement on this page. Check the spread before you check
+          anything else.
+        </p>
+      </div>
+    </details>
+  </section>
+
+  <p class="oc-footnote">
+    Educational tool, not financial advice. All numbers are model output from
+    inputs you typed, there is no market data connection, and nothing you enter
+    leaves your browser. The position is stored in the URL so you can bookmark
+    or share a setup.
+  </p>
+
+</div>
+
+<!-- Chart.js and the annotation plugin, installed from npm and copied into
+     vendor/ by the addPassthroughCopy entries in /.eleventy.js. Loaded as
+     classic scripts so they register as globals before the module runs;
+     Chart.js must come first because the plugin reads Chart.helpers. -->
+<script src="/apps/options/vendor/chart.umd.js"></script>
+<script src="/apps/options/vendor/chartjs-plugin-annotation.min.js"></script>
+<script type="module" src="/apps/options/js/app.js"></script>

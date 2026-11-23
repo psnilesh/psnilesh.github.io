@@ -1,0 +1,6 @@
+{
+  "name": "options-calculator",
+  "private": true,
+  "type": "module",
+  "description": "Scopes ES module semantics to this folder only. The repo root stays CommonJS because .eleventy.js uses module.exports. Without this file, `node --test` reads js/bs.js as CommonJS and the `export` keyword throws."
+}

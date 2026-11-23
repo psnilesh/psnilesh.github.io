@@ -1,2 +1,10 @@
 README.md
 HOWTO.md
+
+# Apps under /apps/ keep their design notes and tests beside their source.
+# Markdown is a template format, so without these rules Eleventy publishes
+# any .md it finds as a real page -- refresh.md was briefly live at
+# /apps/options/test/fixtures/refresh/. Globs rather than exact paths so new
+# docs and test files are covered automatically.
+apps/**/*.md
+apps/**/test/**

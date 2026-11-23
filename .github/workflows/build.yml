@@ -12,10 +12,13 @@ jobs:
    steps:
    - uses: actions/checkout@v3
 
+   # Node 24: jsdom (devDependency, used by the options calculator tests)
+   # declares engines ^22.22.2 || ^24.15.0 || >=26, so npm install on 18
+   # emits EBADENGINE warnings. Node 18 is also end-of-life.
    - name: Setup Node.js
      uses: actions/setup-node@v3
      with:
-       node-version: '18'
+       node-version: '24'
 
    - name: Install dependencies
      run: npm install

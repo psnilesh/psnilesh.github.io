@@ -33,8 +33,36 @@ module.exports = function(eleventyConfig) {
   eleventyConfig.addPassthroughCopy("assets/js");
   eleventyConfig.addPassthroughCopy("favicon.ico");
 
+  // Self-contained apps under /apps/. Each app owns its own CSS and JS and
+  // is not part of the site's Sass build, so both directories are copied
+  // verbatim. See apps/options/DESIGN.md.
+  eleventyConfig.addPassthroughCopy("apps/options/css");
+  eleventyConfig.addPassthroughCopy("apps/options/js");
+
+  // Third-party chart bundles, installed from npm and vendored into the
+  // build output rather than loaded from a CDN. Self-hosting keeps the
+  // version pinned in package.json, removes a runtime dependency on
+  // someone else's uptime, and avoids a bundler. Update the version by
+  // running npm install; these paths do not change.
+  eleventyConfig.addPassthroughCopy({
+    "node_modules/chart.js/dist/chart.umd.js":
+      "apps/options/vendor/chart.umd.js",
+    "node_modules/chartjs-plugin-annotation/dist/chartjs-plugin-annotation.min.js":
+      "apps/options/vendor/chartjs-plugin-annotation.min.js",
+  });
+
   eleventyConfig.addCollection("posts", function(collectionApi) {
     return collectionApi.getFilteredByGlob("_posts/*.md").reverse();
+  });
+
+  // Self-contained apps under /apps/. Discovered by glob rather than listed
+  // anywhere, so dropping in apps/<name>/index.html with `title` and
+  // `summary` front matter makes it appear on /apps/ with no config change.
+  // The glob requires a subdirectory, so apps/index.njk never lists itself.
+  eleventyConfig.addCollection("apps", function(collectionApi) {
+    return collectionApi
+      .getFilteredByGlob("apps/*/index.html")
+      .sort((a, b) => (a.data.title || "").localeCompare(b.data.title || ""));
   });
 
   eleventyConfig.addCollection("tagList", function(collectionApi) {

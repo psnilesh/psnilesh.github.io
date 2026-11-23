@@ -1,0 +1,89 @@
+---
+layout: default.njk
+title: "Apps"
+permalink: /apps/
+---
+
+{#
+  Index of self-contained apps under /apps/.
+
+  The list is generated from the "apps" collection in .eleventy.js, which
+  globs apps/*/index.html. To add an app here, create apps/<name>/index.html
+  with `title`, `summary` and optionally `tech` in its front matter. Nothing
+  in this file needs editing.
+
+  Styles are inline because this page is a dozen lines and does not warrant
+  its own stylesheet plus a passthrough-copy entry. Apps themselves use the
+  `pageCss` front-matter hook instead; see _includes/head.njk.
+#}
+
+<style>
+  .apps-list { list-style: none; margin: 1.5rem 0 0; padding: 0; }
+
+  .apps-item {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 1rem 1.15rem;
+    margin-bottom: 0.9rem;
+    background: #ffffff;
+  }
+
+  .apps-item:hover { border-color: #3182ce; }
+
+  .apps-item-title {
+    font-family: 'Helvetica Neue', 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0 0 0.3rem;
+  }
+
+  .apps-item-title a { color: #3182ce; }
+
+  .apps-item-summary {
+    font-family: 'Helvetica Neue', 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 0.88rem;
+    color: #2d3748;
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  .apps-item-tech {
+    font-family: Menlo, Monaco, monospace;
+    font-size: 0.74rem;
+    color: #718096;
+    margin: 0.45rem 0 0;
+  }
+
+  .apps-empty {
+    font-family: 'Helvetica Neue', 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 0.9rem;
+    color: #718096;
+  }
+</style>
+
+<h2 class="section-title">{{ title }}</h2>
+
+<p class="apps-empty">
+  Interactive tools. Each one runs entirely in your browser, with no backend
+  and no data leaving the page.
+</p>
+
+{% if collections.apps | length %}
+  <ul class="apps-list">
+    {% for app in collections.apps %}
+      <li class="apps-item">
+        <h3 class="apps-item-title">
+          <a href="{{ app.url }}">{{ app.data.title }}</a>
+        </h3>
+        {% if app.data.summary %}
+          <p class="apps-item-summary">{{ app.data.summary }}</p>
+        {% endif %}
+        {% if app.data.tech %}
+          <p class="apps-item-tech">{{ app.data.tech }}</p>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="apps-empty">Nothing here yet.</p>
+{% endif %}

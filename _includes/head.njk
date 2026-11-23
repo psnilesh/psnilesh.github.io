@@ -8,6 +8,11 @@
   <link rel="stylesheet" href="/assets/main.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
 
+  {# Per-page stylesheet, set via `pageCss` in a page's front matter.
+     Used by the self-contained apps under /apps/ so they can ship their
+     own CSS without being folded into the site's Sass build. #}
+  {% if pageCss %}<link rel="stylesheet" href="{{ pageCss }}">{% endif %}
+
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
