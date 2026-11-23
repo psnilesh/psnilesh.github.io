@@ -20,6 +20,13 @@ import {
   eventScenario,
 } from './bs.js';
 import { createPayoffChart, COLORS } from './chart.js';
+import {
+  daysUntil,
+  isoDateInDays,
+  describeDate,
+  isWeekend,
+  parseIsoDate,
+} from './dates.js';
 
 const SHARES_PER_CONTRACT = 100;
 const CHART_POINTS = 161;
@@ -77,6 +84,12 @@ const FIELDS = [
   { id: 'qty', key: 'n', kind: 'number', fallback: 1 },
   { id: 'spot', key: 'S', kind: 'number', fallback: 100 },
   { id: 'strike', key: 'K', kind: 'number', fallback: 100 },
+  // Expiry is expressed two ways and kept in sync. The date is the honest
+  // identity of the contract; the day count is what the model needs and
+  // what is convenient for "what if I held 45 days". Both go into the hash:
+  // `D` (date) wins on restore, because a shared link should still mean the
+  // same option a week later, while `e` keeps older links working.
+  { id: 'expiryDate', key: 'D', kind: 'text', fallback: '' },
   { id: 'dte', key: 'e', kind: 'number', fallback: 30 },
   { id: 'iv', key: 'v', kind: 'number', fallback: 30 },
   { id: 'premium', key: 'p', kind: 'number', fallback: null },
@@ -142,6 +155,67 @@ function restoreFromHash() {
     const node = $(f.id);
     if (node) node.value = value;
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * Expiry: date and day-count kept in sync
+ * ------------------------------------------------------------------ */
+
+// Which control the user touched last, so reconciliation knows which value
+// is authoritative. Tracked rather than inferred inside refresh(), so the
+// result does not depend on the order listeners happen to fire in.
+let expirySource = 'days';
+
+export function setExpirySource(source) {
+  expirySource = source;
+}
+
+/**
+ * Make the date field and the day-count field agree, writing whichever one
+ * the user did not just edit. Called before the model reads either.
+ *
+ * Returns the day count the model should use.
+ */
+function reconcileExpiry() {
+  const dateEl = $('expiryDate');
+  const daysEl = $('dte');
+  if (!dateEl || !daysEl) return Number(daysEl?.value) || 0;
+
+  if (expirySource === 'date' && parseIsoDate(dateEl.value) != null) {
+    const days = daysUntil(dateEl.value);
+    // A past date is clamped to zero for the model (an expired option is
+    // worth intrinsic value) but left visible in the field so the user can
+    // see what they picked and correct it.
+    daysEl.value = String(Math.max(0, days));
+    return days;
+  }
+
+  const days = Number(daysEl.value);
+  if (Number.isFinite(days)) {
+    dateEl.value = isoDateInDays(Math.max(0, days));
+    return days;
+  }
+  return 0;
+}
+
+function renderExpiryNote(rawDays) {
+  const iso = ($('expiryDate') || {}).value || '';
+  if (!iso) {
+    setText('expiry-note', '');
+    return;
+  }
+  if (rawDays < 0) {
+    setText(
+      'expiry-note',
+      `${describeDate(iso)} is in the past. Priced as expired.`
+    );
+    return;
+  }
+  const parts = [describeDate(iso)];
+  if (isWeekend(iso)) {
+    parts.push('— weekend, check the date');
+  }
+  setText('expiry-note', parts.join(' '));
 }
 
 /* ------------------------------------------------------------------ *
@@ -616,6 +690,11 @@ function main() {
   }
 
   function refresh() {
+    // Expiry first: it rewrites one of the two expiry fields, so it has to
+    // settle before anything reads them.
+    const rawDays = reconcileExpiry();
+    renderExpiryNote(rawDays);
+
     const fields = readFields();
     syncControlRanges(fields);
 
@@ -640,6 +719,23 @@ function main() {
     if (chart) renderChart(chart, m, fields.view);
 
     writeHash(readFields());
+  }
+
+  // Record which expiry control was touched, so reconcileExpiry() knows
+  // which of the two to treat as authoritative. Registered before the
+  // generic field binding below, but order does not matter: these only set
+  // a flag that refresh() reads.
+  const dateEl = $('expiryDate');
+  if (dateEl) {
+    for (const event of ['input', 'change']) {
+      dateEl.addEventListener(event, () => setExpirySource('date'));
+    }
+  }
+  const daysEl = $('dte');
+  if (daysEl) {
+    for (const event of ['input', 'change']) {
+      daysEl.addEventListener(event, () => setExpirySource('days'));
+    }
   }
 
   // Bind every declared field.
@@ -738,12 +834,21 @@ function main() {
   // following an in-page link to one, would otherwise leave the form
   // showing stale values. writeHash() uses replaceState, which does not
   // fire hashchange, so this cannot loop.
+  // A link carrying an explicit expiry date must win over any day count in
+  // the same link, since the date is what identifies the contract.
+  const adoptHashExpiry = () => {
+    const iso = ($('expiryDate') || {}).value;
+    setExpirySource(iso && parseIsoDate(iso) != null ? 'date' : 'days');
+  };
+
   window.addEventListener('hashchange', () => {
     restoreFromHash();
+    adoptHashExpiry();
     refresh();
   });
 
   restoreFromHash();
+  adoptHashExpiry();
   refresh();
 }
 

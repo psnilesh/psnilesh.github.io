@@ -18,6 +18,7 @@ import assert from 'node:assert/strict';
 
 import { mountApp, READOUTS } from './helpers/mount.js';
 import { evaluate, expiryBreakeven } from '../js/bs.js';
+import { isoDateInDays, daysUntil } from '../js/dates.js';
 
 const BAD = /NaN|undefined|Infinity|null/;
 
@@ -118,6 +119,119 @@ test('selling at expiry collapses both breakevens and says so', async () => {
     assert.equal(app.text('be-early'), expiry, 'identical at expiry');
     assert.match(app.text('be-gap-note'), /no time value is left/i);
     assert.ok(!BAD.test(app.text('be-early')), 'no NaN at T=0');
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Expiry: date and day count stay in sync
+ * ------------------------------------------------------------------ */
+
+test('the expiry date field is derived from the default day count on load', async () => {
+  await withApp({}, (app) => {
+    assert.equal(app.$('dte').value, '30');
+    assert.equal(app.$('expiryDate').value, isoDateInDays(30));
+    assert.ok(app.text('expiry-note').length > 0, 'shows the readable date');
+  });
+});
+
+test('picking a date updates the day count', async () => {
+  await withApp({}, (app) => {
+    const iso = isoDateInDays(45);
+    app.set('expiryDate', iso);
+    assert.equal(app.$('dte').value, '45');
+    // And the model actually repriced off the new expiry.
+    const expected = evaluate({
+      S: 100, K: 100, T: 45 / 365, vol: 0.3, type: 'call',
+    }).price;
+    assert.equal(app.text('out-model-price'), '$' + expected.toFixed(2));
+  });
+});
+
+test('typing a day count updates the date', async () => {
+  await withApp({}, (app) => {
+    app.set('dte', 7);
+    assert.equal(app.$('expiryDate').value, isoDateInDays(7));
+    assert.equal(daysUntil(app.$('expiryDate').value), 7);
+  });
+});
+
+test('the two expiry fields survive repeated edits from either side', async () => {
+  await withApp({}, (app) => {
+    for (const days of [1, 60, 5, 365, 30]) {
+      app.set('dte', days);
+      assert.equal(daysUntil(app.$('expiryDate').value), days, `days -> date at ${days}`);
+
+      const iso = isoDateInDays(days + 3);
+      app.set('expiryDate', iso);
+      assert.equal(app.$('dte').value, String(days + 3), `date -> days at ${days + 3}`);
+    }
+  });
+});
+
+test('an expiry in the past prices as expired and says so', async () => {
+  await withApp({}, (app) => {
+    app.set('expiryDate', isoDateInDays(-5));
+    assert.equal(app.$('dte').value, '0', 'clamped to zero for the model');
+    assert.match(app.text('expiry-note'), /in the past/i);
+    // Expired call at the money is worth nothing, and must not be NaN.
+    assert.equal(app.text('out-intrinsic'), '$0.00');
+    assert.ok(!BAD.test(app.text('out-model-price')));
+    assert.equal(app.$('oc-errors').hidden, true);
+  });
+});
+
+test('a weekend expiry is flagged as a likely typo', async () => {
+  await withApp({}, (app) => {
+    // Find the next Saturday so the test does not depend on today.
+    let saturday = null;
+    for (let d = 1; d <= 7; d++) {
+      const iso = isoDateInDays(d);
+      if (new Date(iso + 'T00:00:00Z').getUTCDay() === 6) {
+        saturday = iso;
+        break;
+      }
+    }
+    assert.ok(saturday, 'there is a Saturday within a week');
+    app.set('expiryDate', saturday);
+    assert.match(app.text('expiry-note'), /weekend/i);
+  });
+});
+
+test('garbage in the date field leaves the day count alone', async () => {
+  await withApp({}, (app) => {
+    app.set('dte', 20);
+    app.set('expiryDate', 'not-a-date');
+    assert.equal(app.$('dte').value, '20', 'unparseable date is ignored');
+    assert.equal(app.$('oc-errors').hidden, true);
+    assert.ok(!BAD.test(app.text('out-model-price')));
+  });
+});
+
+test('the hash carries both the date and the day count', async () => {
+  await withApp({}, (app) => {
+    app.set('dte', 45);
+    const hash = app.window.location.hash;
+    assert.match(hash, /e=45/, 'day count for older links');
+    assert.match(hash, new RegExp('D=' + isoDateInDays(45)), 'explicit date');
+  });
+});
+
+test('an explicit date in a link beats the day count in the same link', async () => {
+  // A shared position should still mean the same contract later, so the date
+  // is authoritative when both are present and disagree.
+  const iso = isoDateInDays(90);
+  await withApp({ hash: `#S=100&K=100&D=${iso}&e=30&v=30` }, (app) => {
+    assert.equal(app.$('expiryDate').value, iso);
+    assert.equal(app.$('dte').value, '90', 'date won over the stale e=30');
+  });
+});
+
+test('a legacy link with only a day count still works', async () => {
+  // Links shared before the date field existed carry e= and no D=.
+  await withApp({ hash: '#S=100&K=100&e=60&v=30' }, (app) => {
+    assert.equal(app.$('dte').value, '60');
+    assert.equal(app.$('expiryDate').value, isoDateInDays(60), 'date backfilled');
+    assert.ok(!BAD.test(app.text('out-model-price')));
   });
 });
 
